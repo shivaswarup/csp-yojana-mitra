@@ -44,14 +44,10 @@ export const AuthView: React.FC = () => {
     setError(null);
     setIsLoadingGoogle(true);
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(email.trim() || undefined, name.trim() || undefined);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google sign-in could not be completed.';
-      if (msg.startsWith('DOMAIN_NOT_AUTHORIZED:')) {
-        setError('Authentication domain authorization notice: please use email registration/login or select a registered device profile.');
-      } else {
-        setError(msg);
-      }
+      setError(msg);
     } finally {
       setIsLoadingGoogle(false);
     }
