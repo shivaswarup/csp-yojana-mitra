@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Citizen profile containing demographic, educational, social, and economic eligibility attributes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Firebase Auth UID" },
+        "email": { "type": "string", "maxLength": 256, "description": "Citizen email address" },
+        "name": { "type": "string", "maxLength": 120, "description": "Full name of citizen" },
+        "avatar": { "type": "string", "maxLength": 500, "description": "Profile picture URL" },
+        "age": { "type": "number", "description": "Age in years (0-120)" },
+        "gender": { "type": "string", "enum": ["male", "female", "other", "all"], "description": "Gender identity" },
+        "dateOfBirth": { "type": "string", "maxLength": 30, "description": "DOB in ISO/standard format" },
+        "state": { "type": "string", "maxLength": 100, "description": "State or Union Territory of residence" },
+        "district": { "type": "string", "maxLength": 100, "description": "District of residence" },
+        "areaType": { "type": "string", "enum": ["Rural", "Urban"], "description": "Urban or Rural dwelling" },
+        "maritalStatus": { "type": "string", "enum": ["Single", "Married", "Widowed", "Divorced"], "description": "Marital status" },
+        "highestEducation": { "type": "string", "maxLength": 100, "description": "Highest completed or current educational qualification" },
+        "currentEducationStatus": { "type": "string", "enum": ["Pursuing", "Completed", "Dropped Out"], "description": "Current status in education" },
+        "courseStream": { "type": "string", "maxLength": 150, "description": "Academic course or discipline" },
+        "institutionName": { "type": "string", "maxLength": 200, "description": "School, college, or university name" },
+        "isStudent": { "type": "boolean", "description": "Whether currently enrolled as student" },
+        "category": { "type": "string", "enum": ["General", "OBC", "SC", "ST", "EWS", "Minority"], "description": "Social reservation/welfare category" },
+        "isDisability": { "type": "boolean", "description": "Whether person with benchmark disability" },
+        "disabilityPercentage": { "type": "number", "description": "Disability percentage if applicable" },
+        "isMinority": { "type": "boolean", "description": "Whether belongs to notified minority community" },
+        "minorityCommunity": { "type": "string", "maxLength": 100, "description": "Minority community name" },
+        "annualFamilyIncome": { "type": "number", "description": "Annual household income in INR" },
+        "employmentStatus": { "type": "string", "maxLength": 100, "description": "Current employment/livelihood classification" },
+        "occupation": { "type": "string", "maxLength": 150, "description": "Current occupation or trade" },
+        "isFarmer": { "type": "boolean", "description": "Whether engaged in agriculture/farming" },
+        "isBusinessOwner": { "type": "boolean", "description": "Whether owns MSME or micro-enterprise" },
+        "isWomanEntrepreneur": { "type": "boolean", "description": "Whether woman entrepreneur/SHG member" },
+        "isSeniorCitizen": { "type": "boolean", "description": "Whether 60+ years senior citizen" },
+        "isBPLOrEWS": { "type": "boolean", "description": "Whether holds BPL ration card or EWS certificate" },
+        "hasKisanCreditCard": { "type": "boolean", "description": "KCC holder status" },
+        "landHoldingAcres": { "type": "number", "description": "Agricultural land owned in acres" },
+        "isRegistered": { "type": "boolean", "description": "Whether citizen has completed registration and onboarding" },
+        "profileCompleted": { "type": "boolean", "description": "Whether citizen profile is fully set up" },
+        "createdAt": { "type": "string", "maxLength": 50, "description": "Timestamp of profile creation" },
+        "updatedAt": { "type": "string", "maxLength": 50, "description": "Timestamp of last profile update" }
+      },
+      "required": ["id", "email", "name", "state", "category", "annualFamilyIncome"]
+    },
+    "AppliedSchemeRecord": {
+      "title": "AppliedSchemeRecord",
+      "description": "Government scheme or scholarship tracked application record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Unique record identifier" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Citizen owner UID" },
+        "schemeId": { "type": "string", "maxLength": 128, "description": "Target scheme identifier" },
+        "schemeName": { "type": "string", "maxLength": 250, "description": "Official title of scheme" },
+        "schemeCategory": { "type": "string", "maxLength": 100, "description": "Category of scheme" },
+        "appliedDate": { "type": "string", "maxLength": 50, "description": "Date application was marked" },
+        "deadline": { "type": "string", "maxLength": 100, "description": "Official scheme deadline" },
+        "officialWebsite": { "type": "string", "maxLength": 500, "description": "Official portal URL" },
+        "status": { "type": "string", "enum": ["Not Applied", "Applied", "Under Review", "Approved", "Rejected"], "description": "Application progress status" },
+        "notes": { "type": "string", "maxLength": 1000, "description": "User notes, acknowledgement desk details, or reference logs" },
+        "applicationReferenceNumber": { "type": "string", "maxLength": 100, "description": "Portal acknowledgement / application tracking number" },
+        "updatedAt": { "type": "string", "maxLength": 50, "description": "Last updated date/timestamp" }
+      },
+      "required": ["id", "userId", "schemeId", "schemeName", "status"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Deadline, eligibility alert, or government scheme notice",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Notification ID" },
+        "userId": { "type": "string", "maxLength": 128, "description": "Target citizen UID" },
+        "title": { "type": "string", "maxLength": 200, "description": "Notification title" },
+        "message": { "type": "string", "maxLength": 1000, "description": "Notification body content" },
+        "type": { "type": "string", "enum": ["deadline", "new_scheme", "status_update", "eligibility"], "description": "Notification category" },
+        "schemeId": { "type": "string", "maxLength": 128, "description": "Associated scheme slug/ID" },
+        "createdAt": { "type": "string", "maxLength": 50, "description": "Timestamp created" },
+        "read": { "type": "boolean", "description": "Whether user acknowledged/read" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Citizen profile containing personal, academic, socioeconomic, and entitlement indicators"
+    },
+    "/users/{userId}/appliedSchemes/{applicationId}": {
+      "schema": "AppliedSchemeRecord",
+      "description": "User tracked government scheme and scholarship applications"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "NotificationItem",
+      "description": "Personalized scheme alerts, deadline warnings, and application tracking updates"
+    }
+  }
+}

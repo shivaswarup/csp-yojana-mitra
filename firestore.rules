@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all safety net as mandated by Firestore hardening rules
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Health check / connection verification
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation helper for UserProfile
+    function isValidUserProfile(data) {
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 256)) &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 150)) &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 5000)) &&
+             (!('age' in data) || data.age is number) &&
+             (!('gender' in data) || (data.gender in ['male', 'female', 'other', 'all'])) &&
+             (!('dateOfBirth' in data) || (data.dateOfBirth is string && data.dateOfBirth.size() <= 50)) &&
+             (!('state' in data) || (data.state is string && data.state.size() <= 100)) &&
+             (!('district' in data) || (data.district is string && data.district.size() <= 100)) &&
+             (!('areaType' in data) || (data.areaType in ['Rural', 'Urban'])) &&
+             (!('maritalStatus' in data) || (data.maritalStatus in ['Single', 'Married', 'Widowed', 'Divorced'])) &&
+             (!('highestEducation' in data) || (data.highestEducation is string && data.highestEducation.size() <= 100)) &&
+             (!('currentEducationStatus' in data) || (data.currentEducationStatus in ['Pursuing', 'Completed', 'Dropped Out'])) &&
+             (!('courseStream' in data) || (data.courseStream is string && data.courseStream.size() <= 150)) &&
+             (!('institutionName' in data) || (data.institutionName is string && data.institutionName.size() <= 200)) &&
+             (!('category' in data) || (data.category in ['General', 'OBC', 'SC', 'ST', 'EWS', 'Minority'])) &&
+             (!('annualFamilyIncome' in data) || data.annualFamilyIncome is number) &&
+             (!('employmentStatus' in data) || (data.employmentStatus is string && data.employmentStatus.size() <= 100)) &&
+             (!('occupation' in data) || (data.occupation is string && data.occupation.size() <= 250)) &&
+             (!('isFarmer' in data) || data.isFarmer is bool) &&
+             (!('isBusinessOwner' in data) || data.isBusinessOwner is bool) &&
+             (!('isWomanEntrepreneur' in data) || data.isWomanEntrepreneur is bool) &&
+             (!('isSeniorCitizen' in data) || data.isSeniorCitizen is bool) &&
+             (!('isBPLOrEWS' in data) || data.isBPLOrEWS is bool) &&
+             (!('isDisability' in data) || data.isDisability is bool) &&
+             (!('disabilityPercentage' in data) || data.disabilityPercentage is number) &&
+             (!('isMinority' in data) || data.isMinority is bool) &&
+             (!('minorityCommunity' in data) || (data.minorityCommunity is string && data.minorityCommunity.size() <= 100)) &&
+             (!('isStudent' in data) || data.isStudent is bool) &&
+             (!('hasKisanCreditCard' in data) || data.hasKisanCreditCard is bool) &&
+             (!('landHoldingAcres' in data) || data.landHoldingAcres is number) &&
+             (!('isRegistered' in data) || data.isRegistered is bool) &&
+             (!('profileCompleted' in data) || data.profileCompleted is bool) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 80)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 80));
+    }
+
+    // Validation helper for AppliedSchemeRecord
+    function isValidAppliedScheme(data) {
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+             (!('schemeId' in data) || (data.schemeId is string && data.schemeId.size() <= 128)) &&
+             (!('schemeName' in data) || (data.schemeName is string && data.schemeName.size() <= 250)) &&
+             (!('status' in data) || (data.status in ['Not Applied', 'Applied', 'Under Review', 'Approved', 'Rejected'])) &&
+             (!('schemeCategory' in data) || (data.schemeCategory is string && data.schemeCategory.size() <= 100)) &&
+             (!('appliedDate' in data) || (data.appliedDate is string && data.appliedDate.size() <= 60)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('applicationReferenceNumber' in data) || (data.applicationReferenceNumber is string && data.applicationReferenceNumber.size() <= 100)) &&
+             (!('deadline' in data) || (data.deadline is string && data.deadline.size() <= 100)) &&
+             (!('officialWebsite' in data) || (data.officialWebsite is string && data.officialWebsite.size() <= 500)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60));
+    }
+
+    // Validation helper for NotificationItem
+    function isValidNotification(data) {
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+             (!('title' in data) || (data.title is string && data.title.size() <= 200)) &&
+             (!('message' in data) || (data.message is string && data.message.size() <= 2000)) &&
+             (!('type' in data) || (data.type in ['deadline', 'new_scheme', 'status_update', 'eligibility'])) &&
+             (!('read' in data) || data.read is bool) &&
+             (!('schemeId' in data) || (data.schemeId is string && data.schemeId.size() <= 128)) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 60));
+    }
+
+    // User Profile Master Collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && (!('id' in incoming()) || incoming().id == userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && (!('id' in incoming()) || incoming().id == userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Tracked Applications subcollection
+      match /appliedSchemes/{applicationId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(applicationId) && isValidAppliedScheme(incoming()) && (!('userId' in incoming()) || incoming().userId == userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(applicationId) && isValidAppliedScheme(incoming()) && (!('userId' in incoming()) || incoming().userId == userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(applicationId);
+      }
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(notificationId) && isValidNotification(incoming()) && (!('userId' in incoming()) || incoming().userId == userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(notificationId) && isValidNotification(incoming()) && (!('userId' in incoming()) || incoming().userId == userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(notificationId);
+      }
+    }
+  }
+}

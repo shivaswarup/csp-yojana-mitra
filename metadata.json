@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix   Yojanaaa Mitra",
+  "description": "AI-Powered Government Scheme \u0026 Scholarship Assistant helping citizens discover, check eligibility, track deadlines, and apply for government schemes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
