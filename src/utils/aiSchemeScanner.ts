@@ -17,7 +17,7 @@ export function generatePersonalizedAiNote(scheme: Scheme, profile: UserProfile)
 
   // Explicit state scheme check
   if (scheme.governmentLevel === 'State' || (scheme.state && scheme.state !== 'All India')) {
-    return `🏛️ State Govt Entitlement: Official ${scheme.state} State Government scheme verified for resident citizens of ${district}${scheme.state} (${scheme.financialBenefitAmount || 'state welfare benefit'}).`;
+    return `State Govt Entitlement: Official ${scheme.state} State Government scheme verified for resident citizens of ${district}${scheme.state} (${scheme.financialBenefitAmount || 'state welfare benefit'}).`;
   }
 
   if (scheme.category === 'Scholarships' || scheme.category === 'Education') {

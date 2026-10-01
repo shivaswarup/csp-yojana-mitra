@@ -48,6 +48,7 @@ export interface UserProfile {
   annualFamilyIncome: number; // in INR (e.g. 250000)
   employmentStatus: EmploymentStatus;
   occupation?: string; // Deprecated - primary occupation removed per specification
+  phone?: string;
   
   // Specific status flags
   isFarmer: boolean;
@@ -61,6 +62,7 @@ export interface UserProfile {
   // Registration and onboarding state
   isRegistered?: boolean;
   profileCompleted?: boolean;
+  detailsFilled?: boolean;
   
   createdAt: string;
   updatedAt: string;
@@ -71,10 +73,12 @@ export interface DeviceAccount {
   email: string;
   name: string;
   avatar?: string;
-  provider: 'google' | 'password' | 'demo';
+  provider: 'google' | 'password' | 'demo' | 'phone';
   lastUsed: string;
   state?: string;
   district?: string;
+  profileCompleted?: boolean;
+  detailsFilled?: boolean;
 }
 
 export type SchemeCategory = 

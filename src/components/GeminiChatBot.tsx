@@ -17,12 +17,15 @@ import {
   FileCheck,
   GripVertical,
   Move,
-  Languages
+  Languages,
+  MessageSquare,
+  Landmark
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SCHEMES_DATABASE } from '../data/schemes';
 import { Scheme, UserProfile } from '../types';
 import { evaluateSchemeEligibility, getRecommendedSchemes } from '../utils/recommendationEngine';
+import { ensureAbsoluteUrl } from '../utils/urlUtils';
 
 interface Message {
   id: string;
@@ -586,8 +589,8 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
     return lines.map((line, idx) => {
       // Inline link & bold parser
       const renderInline = (str: string) => {
-        // Match [Label](url) OR raw url https://...
-        const linkRegex = /(\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|https?:\/\/[^\s\)\],]+)/g;
+        // Match [Label](url) OR raw url https://... or domain name
+        const linkRegex = /(\[([^\]]+)\]\(([^\)]+)\)|https?:\/\/[^\s\)\],]+|\b[a-zA-Z0-9.-]+\.(gov\.in|cgg\.gov\.in|nic\.in|in|org|com|co\.in)\b[^\s\)\],]*)/g;
         const segments: React.ReactNode[] = [];
         let lastIndex = 0;
         let match: RegExpExecArray | null;
@@ -607,16 +610,19 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
           } else {
             url = full.replace(/[\.\,\;\:\)\*\_]+$/, '');
             try {
-              label = new URL(url).hostname.replace(/^www\./, '');
+              const abs = ensureAbsoluteUrl(url);
+              label = new URL(abs).hostname.replace(/^www\./, '');
             } catch {
               label = url;
             }
           }
 
+          const finalUrl = ensureAbsoluteUrl(url);
+
           segments.push(
             <a
               key={`link-${segments.length}`}
-              href={url}
+              href={finalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-bold text-emerald-800 hover:text-emerald-950 underline decoration-emerald-500 hover:decoration-2 transition-all mx-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
@@ -734,7 +740,7 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
             <GripVertical className="w-3.5 h-3.5" />
           </div>
           <div className="w-6 h-6 rounded-full bg-emerald-700 flex items-center justify-center text-white shrink-0">
-            <Sparkles className="w-3.5 h-3.5" />
+            <MessageSquare className="w-3.5 h-3.5" />
           </div>
           <div className="text-left pointer-events-none">
             <div className="text-xs font-bold leading-tight">Yojana Mitra AI</div>
@@ -779,7 +785,7 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
                 <GripVertical className="w-4 h-4" />
               </div>
               <div className="w-7 h-7 rounded-lg bg-emerald-700 text-emerald-100 flex items-center justify-center font-bold shrink-0">
-                <Sparkles className="w-3.5 h-3.5" />
+                <MessageSquare className="w-3.5 h-3.5" />
               </div>
               <div>
                 <div className="text-xs font-bold flex items-center gap-1.5 leading-tight">
@@ -859,7 +865,7 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
                     >
                       {!isUser && (
                         <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-200">
-                          <Bot className="w-3.5 h-3.5" />
+                          <Landmark className="w-3.5 h-3.5" />
                         </div>
                       )}
                       <div
@@ -895,7 +901,7 @@ export const GeminiChatBot: React.FC<{ onSelectScheme?: (scheme: Scheme) => void
                 {loading && (
                   <div className="flex gap-2.5 justify-start">
                     <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-200">
-                      <Bot className="w-3.5 h-3.5" />
+                      <Landmark className="w-3.5 h-3.5" />
                     </div>
                     <div className="bg-white text-stone-800 border border-stone-200 rounded-xl p-3 shadow-2xs rounded-bl-2xs flex items-center gap-2">
                       <div className="flex items-center gap-1">

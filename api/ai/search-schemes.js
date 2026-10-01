@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     if (!ai) {
       return res.status(200).json({
-        summary: `Search for "${query}" across official state portals like jnanabhumi.ap.gov.in, navasakam2.apcfss.in, telangana.gov.in, and epass.telangana.gov.in.`,
+        summary: `Search for "${query}" across official portals like myscheme.gov.in, scholarships.gov.in, and pmkisan.gov.in.`,
         groundingUrls: []
       });
     }
@@ -40,14 +40,12 @@ export default async function handler(req, res) {
 State context: ${state || 'Andhra Pradesh'}
 Category: ${category}
 CRITICAL: Only search for and return State Government schemes enacted by the State Government of Andhra Pradesh. Do NOT include Central Government schemes.
-Provide genuine active state government schemes with official state government portal application links (.gov.in / .nic.in / .apcfss.in).`;
+Provide genuine active state government schemes with official state government portal application links (.gov.in / .nic.in / myscheme.gov.in). Always specify Required Documents to Apply.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.6-flash',
       contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }]
-      }
+     
     });
 
     const groundingChunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks;

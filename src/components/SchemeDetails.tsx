@@ -16,11 +16,13 @@ import {
   CheckSquare, 
   Square,
   AlertCircle,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { Scheme, SchemeRecommendation } from '../types';
 import { useApp } from '../context/AppContext';
 import { evaluateSchemeEligibility } from '../utils/recommendationEngine';
+import { ensureAbsoluteUrl } from '../utils/urlUtils';
 
 interface SchemeDetailsProps {
   scheme: Scheme;
@@ -123,7 +125,7 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
           )}
 
           <a
-            href={scheme.officialWebsite}
+            href={ensureAbsoluteUrl(scheme.officialWebsite)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-xs transition-colors"
@@ -131,6 +133,15 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
             <span>Apply on Official Portal</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 text-stone-700 bg-white hover:bg-stone-100 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+            title="Close scheme details"
+          >
+            <X className="w-4 h-4" />
+            <span>Close</span>
+          </button>
         </div>
       </div>
 
@@ -140,8 +151,8 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
           <span className="bg-stone-100 text-stone-700 text-xs font-bold px-3 py-1 rounded-md border border-stone-200">
             {scheme.category}
           </span>
-          <span className="bg-amber-50 text-amber-900 text-xs font-bold px-3 py-1 rounded-md border border-amber-200 flex items-center gap-1.5">
-            <Building2 className="w-3.5 h-3.5 text-amber-700" />
+          <span className="bg-emerald-50 text-emerald-900 text-xs font-bold px-3 py-1 rounded-md border border-emerald-300 flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-emerald-700" />
             Government of {scheme.state}
           </span>
           {recommendation && (
@@ -168,7 +179,7 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
                 ₹
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider">Financial Entitlement</div>
+                <div className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider">Benefits</div>
                 <div className="text-base font-bold text-stone-900">{scheme.financialBenefitAmount}</div>
               </div>
             </div>
@@ -298,19 +309,30 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
 
             <a
               id="official-portal-apply-btn"
-              href={scheme.officialWebsite}
+              href={ensureAbsoluteUrl(scheme.officialWebsite)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full inline-flex items-center justify-center gap-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-sm py-3 px-4 rounded-lg shadow-xs transition-all text-center"
             >
-              <span>Apply / Visit Official Website</span>
+              <span>Apply on Official Portal</span>
               <ExternalLink className="w-4 h-4" />
+            </a>
+
+            <a
+              id="myscheme-mirror-btn"
+              href={`https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-1.5 bg-stone-800 hover:bg-stone-700 text-emerald-300 font-semibold text-xs py-2 px-3 rounded-lg border border-stone-700 transition-all text-center"
+            >
+              <span>Alternative: Search / Apply on myScheme.gov.in</span>
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
 
             {!isApplied && (
               <button
                 onClick={() => setShowApplicationModal(true)}
-                className="w-full inline-flex items-center justify-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold text-xs py-2.5 px-4 rounded-lg border border-stone-700 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 font-semibold text-xs py-2.5 px-4 rounded-lg border border-stone-700 transition-colors cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Mark as Applied & Track Status</span>
@@ -327,12 +349,12 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-800" />
-                <span>Required Documents</span>
+                <span>Required Documents to Apply</span>
               </h3>
               <span className="text-[11px] text-stone-500 font-medium">Checklist</span>
             </div>
             <p className="text-xs text-stone-500">
-              Ensure you have scanned copies or physical certificates ready:
+              Ensure you have digital or physical copies of these certificates ready before applying:
             </p>
 
             <div className="space-y-2">
@@ -344,7 +366,7 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
                     onClick={() => toggleDoc(doc)}
                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${
                       isChecked
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-950 font-medium'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
                         : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
                     }`}
                   >
@@ -357,6 +379,13 @@ export const SchemeDetails: React.FC<SchemeDetailsProps> = ({ scheme, onBack }) 
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-stone-700 space-y-1">
+              <div className="font-bold text-emerald-950">💡 Where to obtain missing certificates:</div>
+              <p className="text-stone-600">
+                You can download digital certificates via <a href="https://www.digilocker.gov.in" target="_blank" rel="noopener noreferrer" className="text-emerald-800 font-bold underline">DigiLocker</a> or apply for Caste/Income documents via MeeSeva / Ward Sachivalayam centers.
+              </p>
             </div>
           </div>
 

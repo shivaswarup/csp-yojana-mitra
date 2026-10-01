@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import { Scheme } from '../types';
 import { STATE_SCHEMES } from '../data/stateSchemes';
 import { getOfficialPortalsForState, OfficialPortalInfo } from '../data/statePortals';
+import { ensureAbsoluteUrl, normalizeGovernmentUrl } from '../utils/urlUtils';
 
 interface AiTextResponsePanelProps {
   title: string;
@@ -26,6 +27,7 @@ interface AiTextResponsePanelProps {
   timestamp?: string;
   theme?: 'amber' | 'emerald' | 'indigo';
   onClear?: () => void;
+  onClose?: () => void;
   discussPrompt?: string;
   stateName?: string;
   relevantSchemes?: Scheme[];
@@ -38,6 +40,7 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
   timestamp,
   theme = 'emerald',
   onClear,
+  onClose,
   discussPrompt,
   stateName,
   relevantSchemes
@@ -49,15 +52,15 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
     switch (theme) {
       case 'amber':
         return {
-          wrapper: 'bg-amber-50/60 border-amber-300',
-          badgeBg: 'bg-amber-100 text-amber-900 border-amber-300',
-          iconBg: 'bg-amber-700 text-white',
-          titleColor: 'text-amber-950',
-          borderColor: 'border-amber-200',
-          discussBtn: 'bg-amber-700 hover:bg-amber-800 text-white',
-          linkBadge: 'bg-amber-100/90 text-amber-900 hover:bg-amber-200 border-amber-300',
-          portalCard: 'bg-amber-50/80 border-amber-300/80 hover:border-amber-400',
-          portalBtn: 'bg-amber-800 hover:bg-amber-900 text-white'
+          wrapper: 'bg-emerald-50/60 border-emerald-300',
+          badgeBg: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+          iconBg: 'bg-emerald-800 text-white',
+          titleColor: 'text-emerald-950',
+          borderColor: 'border-emerald-200',
+          discussBtn: 'bg-emerald-800 hover:bg-emerald-700 text-white',
+          linkBadge: 'bg-emerald-100/90 text-emerald-900 hover:bg-emerald-200 border-emerald-300',
+          portalCard: 'bg-emerald-50/80 border-emerald-300/80 hover:border-emerald-400',
+          portalBtn: 'bg-emerald-800 hover:bg-emerald-700 text-white'
         };
       case 'indigo':
         return {
@@ -96,18 +99,11 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
     const list: { url: string; label: string; domain: string }[] = [];
 
     matches.forEach(rawUrl => {
-      // Clean up punctuation at the end of the URL
-      const cleanUrl = rawUrl.replace(/[\.\,\;\:\)\*\_]+$/, '');
-      if (seen.has(cleanUrl)) return;
-      seen.add(cleanUrl);
+      const { activeUrl, displayLabel } = normalizeGovernmentUrl(rawUrl);
+      if (seen.has(activeUrl)) return;
+      seen.add(activeUrl);
 
-      try {
-        const parsed = new URL(cleanUrl);
-        const host = parsed.hostname.replace(/^www\./, '');
-        list.push({ url: cleanUrl, label: host, domain: host });
-      } catch {
-        list.push({ url: cleanUrl, label: 'Official Portal', domain: 'Official Website' });
-      }
+      list.push({ url: activeUrl, label: displayLabel, domain: displayLabel });
     });
 
     return list;
@@ -170,51 +166,71 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
         return <hr key={idx} className={`my-3 border-t ${themeStyles.borderColor}`} />;
       }
 
-      // Check if line is an "Official Application Link" or "Official Portal" callout
+      // Check if line is a "Document Requirements" or "Documents Required" callout
+      const isDocReqLine = /^(\*\*|#|\-\s*)?(Document Requirements?|Documents Required|Required Documents|పత్రాలు|అవసరమైన పత్రాలు)\s*(\(Documents Required\))?[:\*\*]/i.test(line.trim());
+      if (isDocReqLine) {
+        return (
+          <div key={idx} className="my-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200/90 text-xs text-stone-800 flex items-start gap-2.5 shadow-2xs">
+            <span className="p-1 rounded bg-emerald-100 text-emerald-900 shrink-0 mt-0.5">
+              <FileCheck2 className="w-3.5 h-3.5 text-emerald-800" />
+            </span>
+            <div className="flex-1 min-w-0">
+              {renderInlineFormatting(line)}
+            </div>
+          </div>
+        );
+      }
       const isOfficialLinkLine = /official\s+(application\s+)?(link|portal|website)/i.test(line);
       const linkMatchInLine = line.match(/(https?:\/\/[^\s\)\],]+)/);
 
       if (isOfficialLinkLine && linkMatchInLine) {
-        const portalUrl = linkMatchInLine[1].replace(/[\.\,\;\:\)\*\_]+$/, '');
-        let domainLabel = 'Official Government Portal';
-        try {
-          domainLabel = new URL(portalUrl).hostname.replace(/^www\./, '');
-        } catch {
-          // ignore
-        }
+        const { activeUrl, displayLabel, mirrorUrl } = normalizeGovernmentUrl(linkMatchInLine[1]);
 
         return (
           <div 
             key={idx} 
-            className="my-3 p-3.5 rounded-xl bg-amber-50/90 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+            className="my-3 p-3.5 rounded-xl bg-emerald-50/90 border border-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
           >
-            <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-700 text-white flex items-center justify-center shrink-0 mt-0.5">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-800 text-white flex items-center justify-center shrink-0 mt-0.5">
                 <Landmark className="w-4 h-4" />
               </div>
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 block flex items-center gap-1">
+              <div className="min-w-0">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-700" />
                   <span>Official Application Portal</span>
                 </span>
-                <span className="text-xs font-bold text-stone-950 block">
-                  {domainLabel}
+                <span className="text-xs font-bold text-stone-950 block truncate">
+                  {displayLabel}
                 </span>
                 <span className="text-[11px] text-stone-600 truncate block max-w-md">
-                  {portalUrl}
+                  {activeUrl}
                 </span>
               </div>
             </div>
 
-            <a
-              href={portalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold shadow-2xs transition-all shrink-0 cursor-pointer"
-            >
-              <span>Apply on Official Portal</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+              <a
+                href={activeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all shrink-0 cursor-pointer"
+              >
+                <span>Apply on Official Portal</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+
+              <a
+                href={mirrorUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-lg text-[11px] font-semibold transition-all shrink-0 cursor-pointer"
+                title="Alternative mirror on myScheme.gov.in"
+              >
+                <span>myScheme Portal</span>
+                <ExternalLink className="w-3 h-3 text-stone-500" />
+              </a>
+            </div>
           </div>
         );
       }
@@ -286,8 +302,8 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
 
   // Helper for inline markdown: bold (**text**), italics (*text*), markdown links ([text](url)), and raw URLs (https://...)
   const renderInlineFormatting = (text: string) => {
-    // Combined regex for markdown link [Label](url) OR raw URL (https?://...)
-    const combinedRegex = /(\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|https?:\/\/[^\s\)\],]+)/g;
+    // Combined regex for markdown link [Label](url) OR raw URL or domain (e.g. scholarships.gov.in, https://...)
+    const combinedRegex = /(\[([^\]]+)\]\(([^\)]+)\)|https?:\/\/[^\s\)\],]+|\b[a-zA-Z0-9.-]+\.(gov\.in|cgg\.gov\.in|nic\.in|in|org|com|co\.in)\b[^\s\)\],]*)/g;
     const segments: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -304,25 +320,24 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
       if (match[2] && match[3]) {
         // It's a markdown link [Label](url)
         label = match[2];
-        url = match[3];
+        const normalized = normalizeGovernmentUrl(match[3]);
+        url = normalized.activeUrl;
       } else {
-        // Clean raw url
-        url = fullMatch.replace(/[\.\,\;\:\)\*\_]+$/, '');
-        try {
-          label = new URL(url).hostname.replace(/^www\./, '');
-        } catch {
-          label = url;
-        }
+        // Clean raw url/domain
+        const cleanUrl = fullMatch.replace(/[\.\,\;\:\)\*\_]+$/, '');
+        const normalized = normalizeGovernmentUrl(cleanUrl);
+        url = normalized.activeUrl;
+        label = normalized.displayLabel;
       }
 
       segments.push(
         <a
           key={`link-${segments.length}`}
-          href={url}
+          href={ensureAbsoluteUrl(url)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-bold text-amber-900 hover:text-amber-950 underline decoration-amber-500 hover:decoration-2 transition-all mx-0.5 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
-          title={`Visit official government portal: ${url}`}
+          className="inline-flex items-center gap-1 font-bold text-emerald-900 hover:text-emerald-950 underline decoration-emerald-500 hover:decoration-2 transition-all mx-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+          title={`Visit official government portal: ${ensureAbsoluteUrl(url)}`}
         >
           <span>{label}</span>
           <ExternalLink className="w-3 h-3 shrink-0" />
@@ -368,7 +383,7 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-200/80">
         <div className="flex items-start sm:items-center gap-3">
           <div className={`w-9 h-9 rounded-xl ${themeStyles.iconBg} flex items-center justify-center shrink-0 shadow-xs`}>
-            <Bot className="w-5 h-5" />
+            <Landmark className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -426,15 +441,14 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
             </button>
           )}
 
-          {onClear && (
+          {onClose && (
             <button
-              onClick={onClear}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 text-xs font-bold rounded-xl border border-stone-200 hover:border-red-300 shadow-2xs transition-all cursor-pointer"
-              title="Close or clear this schemes section"
-              aria-label="Close schemes section"
+              onClick={onClose}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 rounded-xl border border-stone-200 hover:border-red-200 shadow-2xs transition-colors cursor-pointer text-xs font-semibold"
+              title="Close and dismiss evaluated schemes"
             >
-              <X className="w-3.5 h-3.5 text-stone-400 group-hover:text-red-600" />
-              <span>Close</span>
+              <X className="w-4 h-4 text-stone-500 hover:text-red-700" />
+              <span className="hidden sm:inline">Close</span>
             </button>
           )}
         </div>
@@ -449,11 +463,11 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
 
       {/* DEDICATED OFFICIAL LINKS SECTION: GUARANTEED OFFICIAL PORTAL LINKS FOR EVERY MENTIONED SCHEME */}
       {mentionedSchemesWithLinks.length > 0 && (
-        <div className="bg-white rounded-xl border border-amber-300 p-4 sm:p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between gap-2 border-b border-amber-100 pb-2.5">
+        <div className="bg-white rounded-xl border border-emerald-300 p-4 sm:p-5 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between gap-2 border-b border-emerald-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
-                <Landmark className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center shrink-0">
+                <Landmark className="w-4 h-4 text-emerald-800" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-stone-900">
@@ -464,7 +478,7 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
                 </p>
               </div>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200 shrink-0">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200 shrink-0">
               {mentionedSchemesWithLinks.length} Official Links
             </span>
           </div>
@@ -473,11 +487,11 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
             {mentionedSchemesWithLinks.map(({ scheme, officialUrl }) => (
               <div 
                 key={scheme.id}
-                className="bg-amber-50/50 hover:bg-amber-50 rounded-xl border border-amber-200/80 hover:border-amber-400 p-3.5 flex flex-col justify-between gap-3 transition-all"
+                className="bg-emerald-50/50 hover:bg-emerald-50 rounded-xl border border-emerald-200/80 hover:border-emerald-400 p-3.5 flex flex-col justify-between gap-3 transition-all"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200/70 text-amber-900">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
                       {scheme.state} State
                     </span>
                     <span className="text-[10px] text-stone-500 font-semibold truncate">
@@ -490,9 +504,31 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
                   <p className="text-[11px] text-stone-600 line-clamp-1">
                     {scheme.department}
                   </p>
+
+                  {/* Required Documents to Apply */}
+                  {scheme.requiredDocuments && scheme.requiredDocuments.length > 0 && (
+                    <div className="mt-1 text-[11px] bg-white/90 p-2 rounded-lg border border-emerald-200">
+                      <div className="font-bold text-stone-800 flex items-center gap-1 mb-1 text-[10px]">
+                        <FileCheck2 className="w-3 h-3 text-emerald-800" />
+                        <span>Required Documents to Apply:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {scheme.requiredDocuments.slice(0, 3).map((d, i) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-900 rounded text-[10px] font-medium border border-emerald-200">
+                            ✓ {d}
+                          </span>
+                        ))}
+                        {scheme.requiredDocuments.length > 3 && (
+                          <span className="text-[10px] text-emerald-700 font-semibold self-center">
+                            +{scheme.requiredDocuments.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-200/60">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-200/60">
                   <div className="flex items-center gap-1 text-[10px] text-stone-500 font-mono truncate">
                     <Lock className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                     <span className="truncate">{new URL(officialUrl).hostname.replace(/^www\./, '')}</span>
@@ -502,7 +538,7 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
                     href={officialUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-bold shadow-2xs transition-all shrink-0 cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all shrink-0 cursor-pointer"
                   >
                     <span>Apply on Portal</span>
                     <ExternalLink className="w-3 h-3" />
@@ -519,7 +555,7 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
         <div className="bg-white/90 rounded-xl border border-stone-200 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
-              <Globe className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <Globe className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
               <span>Official Government Single-Window & Department Portals ({stateName}):</span>
             </div>
             <span className="text-[10px] font-semibold text-stone-500">
@@ -534,20 +570,20 @@ export const AiTextResponsePanel: React.FC<AiTextResponsePanelProps> = ({
                 href={portal.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2.5 rounded-lg border border-stone-200 hover:border-amber-300 bg-stone-50/70 hover:bg-amber-50/50 transition-all flex flex-col justify-between group"
+                className="p-2.5 rounded-lg border border-stone-200 hover:border-emerald-300 bg-stone-50/70 hover:bg-emerald-50/50 transition-all flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-bold text-stone-900 group-hover:text-amber-900 transition-colors truncate">
+                    <span className="text-xs font-bold text-stone-900 group-hover:text-emerald-900 transition-colors truncate">
                       {portal.name}
                     </span>
-                    <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-700 shrink-0" />
+                    <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-emerald-700 shrink-0" />
                   </div>
                   <span className="text-[10px] text-stone-500 block truncate mt-0.5">
                     {portal.category}
                   </span>
                 </div>
-                <div className="text-[10px] font-mono text-amber-900 font-bold mt-2 truncate">
+                <div className="text-[10px] font-mono text-emerald-900 font-bold mt-2 truncate">
                   {portal.domain}
                 </div>
               </a>

@@ -38,7 +38,7 @@ ${JSON.stringify(userProfile)}
 Return JSON with key "schemes" containing an array of matched state schemes.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

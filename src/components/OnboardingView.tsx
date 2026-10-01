@@ -18,15 +18,10 @@ import { UserProfile, Category, EducationLevel, EmploymentStatus, Gender } from 
 import { ALL_INDIAN_STATES, getDistrictsForState } from '../data/statesAndDistricts';
 
 export const OnboardingView: React.FC = () => {
-  const { currentUser, completeOnboarding, registrationNotice, clearRegistrationNotice, setIsOnboarding, setActiveTab } = useApp();
+  const { currentUser, completeOnboarding, registrationNotice, clearRegistrationNotice } = useApp();
   
   const [step, setStep] = useState(1);
   const totalSteps = 5;
-
-  const handleSkipToHome = () => {
-    setIsOnboarding(false);
-    setActiveTab('home');
-  };
 
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     name: currentUser?.name || '',
@@ -80,18 +75,12 @@ export const OnboardingView: React.FC = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1 rounded-md border border-emerald-200">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-800" />
-              <span>Citizen Profile Setup</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-800" />
+              <span>Citizen Registration & Profile Setup</span>
             </div>
-            <button
-              type="button"
-              id="onboarding-skip-home-btn"
-              onClick={handleSkipToHome}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-600 hover:text-emerald-800 bg-white hover:bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-lg shadow-2xs transition-all cursor-pointer"
-            >
-              <Home className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Go to Home Page</span>
-            </button>
+            <div className="text-xs font-semibold text-stone-500">
+              Step {step} of {totalSteps}
+            </div>
           </div>
           <div className="text-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">
@@ -105,19 +94,19 @@ export const OnboardingView: React.FC = () => {
 
         {/* Notice for new accounts routed to registration */}
         {registrationNotice && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-800 shrink-0 mt-0.5">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex items-start gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-800 shrink-0 mt-0.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-800" />
             </div>
             <div className="flex-1">
-              <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider">New Citizen Account Setup</h3>
-              <p className="text-xs text-amber-800 mt-0.5 leading-relaxed font-medium">
+              <h3 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">New Citizen Account Setup</h3>
+              <p className="text-xs text-emerald-900 mt-0.5 leading-relaxed font-medium">
                 {registrationNotice}
               </p>
             </div>
             <button
               onClick={clearRegistrationNotice}
-              className="text-amber-500 hover:text-amber-800 p-1 rounded-md transition-colors"
+              className="text-emerald-600 hover:text-emerald-900 p-1 rounded-md transition-colors"
               title="Dismiss"
             >
               <X className="w-4 h-4" />
@@ -438,7 +427,7 @@ export const OnboardingView: React.FC = () => {
                         employmentStatus: status,
                         isStudent: status === 'Student',
                         isFarmer: status === 'Farmer',
-                        isBusinessOwner: status === 'Business Holder',
+                        isBusinessOwner: false,
                         isSeniorCitizen: status === 'Senior Citizen',
                         isWomanEntrepreneur: status === 'Women',
                         gender: status === 'Women' ? 'female' : formData.gender
@@ -446,11 +435,10 @@ export const OnboardingView: React.FC = () => {
                     }}
                     className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg focus:outline-hidden focus:border-emerald-600 focus:bg-white font-medium"
                   >
-                    <option value="Business Holder">1. Business Holder</option>
-                    <option value="Farmer">2. Farmer</option>
-                    <option value="Student">3. Student</option>
-                    <option value="Senior Citizen">4. Senior Citizen</option>
-                    <option value="Women">5. Women</option>
+                    <option value="Farmer">1. Farmer</option>
+                    <option value="Student">2. Student</option>
+                    <option value="Senior Citizen">3. Senior Citizen</option>
+                    <option value="Women">4. Women</option>
                   </select>
                   <p className="text-[11px] text-stone-500 mt-1">
                     Your scheme recommendations will be tailored strictly according to this employment status.
@@ -536,14 +524,7 @@ export const OnboardingView: React.FC = () => {
                 <span>Back</span>
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSkipToHome}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-stone-500 hover:text-stone-800 text-xs font-semibold transition-colors cursor-pointer"
-              >
-                <Home className="w-3.5 h-3.5 text-stone-400" />
-                <span>Skip to Home Page</span>
-              </button>
+              <div />
             )}
 
             <button

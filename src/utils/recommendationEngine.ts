@@ -1,20 +1,16 @@
 import { Scheme, UserProfile, SchemeRecommendation, MatchReason, EmploymentStatus } from '../types';
 
 /**
- * Normalizes user's employment status to one of the 5 canonical categories:
- * 1. Business Holder
- * 2. Farmer
- * 3. Student
- * 4. Senior Citizen
- * 5. Women
+ * Normalizes user's employment status to one of the canonical categories:
+ * 1. Farmer
+ * 2. Student
+ * 3. Senior Citizen
+ * 4. Women
  */
 export function normalizeEmploymentStatus(status?: string): EmploymentStatus {
   if (!status) return 'Student';
   const s = status.toLowerCase().trim();
 
-  if (s.includes('bussines') || s.includes('business') || s.includes('self-employed') || s.includes('msme') || s.includes('entrepreneur')) {
-    return 'Business Holder';
-  }
   if (s.includes('farmer') || s.includes('agri') || s.includes('cultivat')) {
     return 'Farmer';
   }
@@ -196,7 +192,56 @@ export function evaluateSchemeEligibility(scheme: Scheme, profile: UserProfile):
     });
   }
 
-  // 2. STATE DOMICILE VERIFICATION (For State Government Initiatives)
+  // 2. GENDER ELIGIBILITY VERIFICATION (STRICT)
+  const userGender = (profile.gender || 'male').toLowerCase().trim();
+  const allowedGenders = rules.genders?.map(g => g.toLowerCase().trim()) || [];
+
+  const textLower = [
+    scheme.name,
+    scheme.category,
+    scheme.description || '',
+    scheme.shortDescription || '',
+    (scheme.tags || []).join(' '),
+    (scheme.eligibility || []).join(' ')
+  ].join(' ').toLowerCase();
+
+  const isFemaleOnlyScheme = 
+    (allowedGenders.length === 1 && allowedGenders[0] === 'female') ||
+    textLower.includes('girl student') ||
+    textLower.includes('girl child') ||
+    textLower.includes('female student') ||
+    textLower.includes('for girls') ||
+    textLower.includes('women only') ||
+    textLower.includes('pragati scholarship for girl') ||
+    textLower.includes('aadabidda') ||
+    textLower.includes('cheyutha') ||
+    textLower.includes('pregnant women') ||
+    textLower.includes('lactating mother') ||
+    textLower.includes('sukanya samriddhi');
+
+  if (userGender === 'male' && isFemaleOnlyScheme) {
+    unmetCriteria.push('Exclusively for Female / Girl applicants (Your profile gender is Male)');
+    reasons.push({
+      matched: false,
+      criterion: 'Gender Requirement',
+      detail: 'This scheme or scholarship is strictly for Female / Girl applicants and cannot be availed by Male candidates.'
+    });
+  } else if (allowedGenders.length > 0 && !allowedGenders.includes(userGender)) {
+    unmetCriteria.push(`Exclusively for ${allowedGenders.join(' / ')} applicants (Your gender: ${userGender})`);
+    reasons.push({
+      matched: false,
+      criterion: 'Gender Requirement',
+      detail: `Designated exclusively for ${allowedGenders.join(' / ')} candidates.`
+    });
+  } else if (userGender === 'female' && isFemaleOnlyScheme) {
+    reasons.push({
+      matched: true,
+      criterion: 'Gender Eligibility',
+      detail: 'Directly tailored for Female / Women beneficiaries.'
+    });
+  }
+
+  // 3. STATE DOMICILE VERIFICATION (For State Government Initiatives)
   const allowedStates = (rules.states && rules.states.length > 0)
     ? rules.states
     : (scheme.state && scheme.state !== 'All India' ? [scheme.state] : []);
@@ -258,15 +303,63 @@ export function evaluateSchemeEligibility(scheme: Scheme, profile: UserProfile):
 }
 
 /**
- * Returns recommended schemes ONLY based on the user's Employment Status.
+ * Returns recommended schemes strictly filtered by Employment Status and Gender.
+ * - For Female Students: AICTE Pragati Scholarship for Girls, Vidya Deevena, Vasathi Deevena, Thalliki Vandanam, and Maha Shakti Free Bus are prioritized.
+ * - For Women (Employment Status: Women): Flagship AP women empowerment schemes from Image 2 are prioritized first.
  */
 export function getRecommendedSchemes(schemes: Scheme[], profile: UserProfile): SchemeRecommendation[] {
   const recommendations = schemes.map(scheme => evaluateSchemeEligibility(scheme, profile));
 
-  // Strictly return schemes where employment status matches with 0 unmet criteria
+  const userGender = (profile.gender || '').toLowerCase();
+  const userStatus = normalizeEmploymentStatus(profile.employmentStatus);
+  const isFemaleStudent = userStatus === 'Student' && userGender === 'female';
+  const isWomenCategory = userStatus === 'Women';
+
+  // Priority order for Female Students:
+  const femaleStudentPriorityIds = [
+    'ap-aicte-pragati-scholarship',
+    'ap-vidya-deevena-reimbursement',
+    'ap-vasathi-deevena-grant',
+    'ap-thalliki-vandanam',
+    'ap-national-scholarship-post-matric',
+    'ap-maha-shakti-free-bus',
+    'ap-videshi-vidya-scheme',
+    'ap-ntr-vaidya-seva'
+  ];
+
+  // Priority order for Women category as requested in Image 2:
+  const womenPriorityIds = [
+    'ap-maha-shakti-free-bus',
+    'ap-maha-shakti-aadabidda-nidhi',
+    'ap-deepam-2-gas-scheme',
+    'ap-ysr-cheyutha-women',
+    'ap-sunna-vaddi-dwcra',
+    'ap-kalyana-masthu',
+    'ap-pmmvy-matru-vandana',
+    'ap-sukanya-samriddhi-yojana'
+  ];
+
+  // Strictly return schemes where employment status and gender match with 0 unmet criteria
   return recommendations
     .filter(rec => rec.unmetCriteria.length === 0 && rec.matchScore >= 80)
-    .sort((a, b) => b.matchScore - a.matchScore);
+    .sort((a, b) => {
+      if (isFemaleStudent) {
+        const indexA = femaleStudentPriorityIds.indexOf(a.scheme.id);
+        const indexB = femaleStudentPriorityIds.indexOf(b.scheme.id);
+
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+      } else if (isWomenCategory || userGender === 'female') {
+        const indexA = womenPriorityIds.indexOf(a.scheme.id);
+        const indexB = womenPriorityIds.indexOf(b.scheme.id);
+
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+      }
+      return b.matchScore - a.matchScore;
+    });
 }
 
 /**

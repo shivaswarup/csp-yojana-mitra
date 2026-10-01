@@ -1,12 +1,35 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+
+let appDirname = process.cwd();
+try {
+  if (typeof __dirname !== 'undefined' && __dirname) {
+    appDirname = __dirname;
+  } else if (typeof import.meta !== 'undefined' && import.meta && import.meta.url) {
+    appDirname = path.dirname(fileURLToPath(import.meta.url));
+  }
+} catch {
+  appDirname = process.cwd();
+}
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+const sanitizeSchemeNames = (text: string): string => {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/YSR\s+Rythu\s+Bharosa(\s*-\s*PM\s*KISAN)?/gi, 'Andhra Pradesh Annadata Sukhibhava - PM KISAN Scheme')
+    .replace(/YSR\s+Cheyutha/gi, 'Cheyutha')
+    .replace(/YSR\s+Kalyana\s+Masthu/gi, 'Kalyana Masthu')
+    .replace(/YSR\s+Pension\s+Kanuka/gi, 'NTR Bharosa Pension')
+    .replace(/YSR\s+Aarogyasri/gi, 'NTR Vaidya Seva');
+};
 
 app.use(express.json());
 
@@ -29,21 +52,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Lazy / safe initialization of Gemini AI
-function getGenAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.warn('GEMINI_API_KEY not configured. AI capabilities will return fallback responses.');
-    return null;
-  }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+// Official Google GenAI client initialization
+function getAIClient(): GoogleGenAI | null {
+  const geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (geminiApiKey) {
+    return new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
       },
-    },
-  });
+    });
+  }
+
+  return null;
 }
 
 function timeoutPromise<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -56,82 +79,94 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// Quota tracking: track which models are temporarily exhausted to prevent 429 errors
-const modelCooldownMap = new Map<string, number>();
-
-function isModelInCooldown(model: string): boolean {
-  const cooldownUntil = modelCooldownMap.get(model);
-  if (!cooldownUntil) return false;
-  if (Date.now() > cooldownUntil) {
-    modelCooldownMap.delete(model);
-    return false;
+// Resilient AI generation using official GoogleGenAI with model fallback and exponential backoff
+async function generateContentWithFallback(
+  ai: GoogleGenAI | null,
+  options: {
+    contents: any;
+    config?: any;
+    primaryModel?: string;
+    fallbackModels?: string[];
+    retries?: number;
+    timeoutMs?: number;
   }
-  return true;
-}
-
-function setModelCooldown(model: string, cooldownMs: number = 180000) {
-  modelCooldownMap.set(model, Date.now() + cooldownMs);
-}
-
-// Resilient Gemini generation with model fallback on 503/429/high demand/quota/timeout
-async function generateContentWithFallback(ai: GoogleGenAI | null, options: {
-  contents: any;
-  config?: any;
-  primaryModel?: string;
-  fallbackModels?: string[];
-  retries?: number;
-  timeoutMs?: number;
-}) {
+) {
   if (!ai) return null;
-  const timeoutMs = options.timeoutMs || 15000;
 
-  // Use gemini-3.1-flash-lite as standard primary model due to stable quota availability
-  const candidateModels = [
-    options.primaryModel || 'gemini-3.1-flash-lite',
-    ...(options.fallbackModels || ['gemini-3.8-flash', 'gemini-flash-latest'])
+  const models = [
+    options.primaryModel || 'gemini-3.8-flash',
+    ...(options.fallbackModels || ['gemini-3.1-flash-lite', 'gemini-flash-latest'])
   ];
 
-  // Unique list preserving order
-  const uniqueCandidates = Array.from(new Set(candidateModels));
-
-  // Sort candidate models so non-cooling down models are evaluated first
-  const modelsToTry = uniqueCandidates.sort((a, b) => {
-    const aCool = isModelInCooldown(a) ? 1 : 0;
-    const bCool = isModelInCooldown(b) ? 1 : 0;
-    return aCool - bCool;
-  });
-
-  for (let i = 0; i < modelsToTry.length; i++) {
-    const model = modelsToTry[i];
-    if (isModelInCooldown(model)) {
-      // Skip models currently cooling down without wasting time/requests
-      continue;
-    }
-
-    try {
-      const response = await timeoutPromise(ai.models.generateContent({
-        model,
-        contents: options.contents,
-        config: options.config,
-      }), timeoutMs);
-      if (response?.text) {
-        return response;
+  // Format contents for @google/genai SDK
+  let formattedContents: any = options.contents;
+  if (typeof options.contents === 'string') {
+    formattedContents = [{ role: 'user', parts: [{ text: options.contents }] }];
+  } else if (Array.isArray(options.contents)) {
+    formattedContents = options.contents.map((item: any) => {
+      if (typeof item === 'string') {
+        return { role: 'user', parts: [{ text: item }] };
       }
-    } catch (err: any) {
-      const errStr = (err?.message || String(err)).toLowerCase();
-      const isQuotaOrRate = 
-        errStr.includes('429') || 
-        errStr.includes('resource_exhausted') || 
-        errStr.includes('quota') ||
-        errStr.includes('rate limit');
-
-      if (isQuotaOrRate) {
-        setModelCooldown(model, 180000); // 3-minute cooldown
-        console.log(`Gemini model ${model} reached quota limit; falling back to alternative model.`);
-      } else {
-        console.log(`Gemini model ${model} attempt completed with fallback.`);
+      if (item && item.parts) {
+        return item;
       }
-      // Continue to next model
+      if (item && item.content) {
+        return {
+          role: item.role === 'assistant' ? 'model' : (item.role || 'user'),
+          parts: [{ text: String(item.content) }]
+        };
+      }
+      return { role: 'user', parts: [{ text: JSON.stringify(item) }] };
+    });
+  }
+
+  const uniqueModels = [...new Set(models)];
+
+  for (let i = 0; i < uniqueModels.length; i++) {
+    const model = uniqueModels[i];
+    const maxAttempts = i === 0 ? (options.retries ?? 1) : 0;
+
+    for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+      try {
+        const responsePromise = ai.models.generateContent({
+          model,
+          contents: formattedContents,
+          config: options.config,
+        });
+
+        const response = options.timeoutMs
+          ? await timeoutPromise(responsePromise, options.timeoutMs)
+          : await responsePromise;
+
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        const errMsg = (err?.message || String(err)).toLowerCase();
+        const isTransient =
+          errMsg.includes('503') ||
+          errMsg.includes('high demand') ||
+          errMsg.includes('unavailable') ||
+          errMsg.includes('resource_exhausted') ||
+          errMsg.includes('quota') ||
+          errMsg.includes('rate') ||
+          errMsg.includes('429') ||
+          errMsg.includes('timeout') ||
+          errMsg.includes('connection');
+
+        if (isTransient && attempt < maxAttempts) {
+          const delay = (attempt + 1) * 800 + Math.floor(Math.random() * 200);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        if (isTransient && i < uniqueModels.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          break;
+        }
+
+        break;
+      }
     }
   }
 
@@ -218,7 +253,7 @@ How can I assist you today? You can ask me about:
 3. **Register on Official Government Portal:**
    - National Schemes & Scholarships: [National Scholarship Portal](https://scholarships.gov.in) or [myScheme Portal](https://www.myscheme.gov.in)
    - Telangana State Schemes: [Telangana ePASS](https://telanganaepass.cgg.gov.in)
-   - Andhra Pradesh State Schemes: [JnanaBhumi AP](https://jnanabhumi.ap.gov.in) / [Navasakam](https://navasakam2.apcfss.in)
+   - Andhra Pradesh State Schemes: [JnanaBhumi AP](https://jnanabhumi.ap.gov.in) / [myScheme Portal](https://www.myscheme.gov.in)
 4. **Submit & Track:** Fill in educational or household details, upload documents, and save your Application ID to track disbursement status.`;
   }
 
@@ -273,35 +308,40 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ ఎన్టీఆర్ భరోసా వృద్ధాప్య పింఛను పథకం (AP NTR Bharosa Senior Citizen Pension)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 సంవత్సరాలు నిండిన ఏపీ నివాసితులు, వార్షిక కుటుంబ ఆదాయం ₹1.44 లక్షల లోపు (గ్రామీణ) / ₹1.20 లక్షల లోపు (పట్టణ). పత్రాలు: ఆధార్ కార్డు (వయస్సు నిర్ధారణ 60+), ఏపీ రైస్ కార్డ్ (తెల్ల రేషన్ కార్డు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా.
+**అర్హతలు (Requirements):** 60 సంవత్సరాలు నిండిన ఏపీ నివాసితులు, వార్షిక కుటుంబ ఆదాయం ₹1.44 లక్షల లోపు (గ్రామీణ) / ₹1.20 లక్షల లోపు (పట్టణ).
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు (వయస్సు నిర్ధారణ 60+), ఏపీ రైస్ కార్డ్ (తెల్ల రేషన్ కార్డు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** నెలకు ₹4,000 వృద్ధాప్య పింఛను ప్రతి నెలా 1వ తేదీన నేరుగా గ్రామ/వార్డు సచివాలయాల ద్వారా మీ ఇంటి వద్దే నగదు రూపంలో అందజేయబడుతుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ ఎన్టీఆర్ పింఛను పోర్టల్](https://sspensions.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ సోషల్ అసిస్టెన్స్ పోర్టల్](https://nsap.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ వయోవృద్ధుల ఆరోగ్య భద్రత (Dr. NTR Vaidya Seva Geriatric Healthcare)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60+ ఏళ్ల ఏపీ వృద్ధులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు, ఏపీ రైస్ కార్డ్ హోల్డర్లు. పత్రాలు: ఆధార్ కార్డు, ఎన్టీఆర్ వైద్య సేవ హెల్త్ కార్డు / రైస్ కార్డ్.
+**అర్హతలు (Requirements):** 60+ ఏళ్ల ఏపీ వృద్ధులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు, ఏపీ రైస్ కార్డ్ హోల్డర్లు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఎన్టీఆర్ వైద్య సేవ హెల్త్ కార్డు / రైస్ కార్డ్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మోకాలి/తుంటి మార్పిడి, గుండె చికిత్సలు, క్యాన్సర్ సహా 3,257 శస్త్రచికిత్సలకు ₹25 లక్షల వరకు 100% ఉచిత నగదు రహిత ఆసుపత్రి చికిత్స మరియు విశ్రాంతి సమయంలో నెలకు ₹5,000 ఆరోగ్య ఆసరా లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ట్రస్ట్](https://aarogyasri.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వయో వందన సీనియర్ సిటిజన్ సహాయ పరికరాల పథకం (AP Vayo Vandana Scheme)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 ఏళ్లు పైబడిన బిపిఎల్ వయోవృద్ధులు, వయో సంబంధిత వైకల్యం కలవారు. పత్రాలు: ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం.
+**అర్హతలు (Requirements):** 60 ఏళ్లు పైబడిన బిపిఎల్ వయోవృద్ధులు, వయో సంబంధిత వైకల్యం కలవారు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, వైకల్య నిర్ధారణ పత్రం.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** డిజిటల్ వినికిడి యంత్రాలు, వీల్‌చైర్లు, వాకింగ్ స్టిక్స్, కళ్లజోళ్ళు మరియు కృత్రిమ పళ్ళ సెట్లు 100% ఉచితంగా ప్రభుత్వ ఖర్చుతో పంపిణీ చేయబడతాయి.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ నవశకం పోర్టల్](https://navasakam2.apcfss.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [మై స్కీమ్ పోర్టల్](https://www.myscheme.gov.in)
 
 4.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ సీనియర్ సిటిజన్ ఆర్టీసీ బస్సు రాయితీ & వృద్ధుల గుర్తింపు కార్డు (APSRTC Senior Citizen Bus Concession)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 ఏళ్లు నిండిన ఆంధ్రప్రదేశ్ వయోవృద్ధులు. పత్రాలు: ఆధార్ కార్డు / సీనియర్ సిటిజన్ ఐడీ కార్డ్, పాస్‌పోర్ట్ సైజ్ ఫోటో.
+**అర్హతలు (Requirements):** 60 ఏళ్లు నిండిన ఆంధ్రప్రదేశ్ వయోవృద్ధులు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు / సీనియర్ సిటిజన్ ఐడీ కార్డ్, పాస్‌పోర్ట్ సైజ్ ఫోటో.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఆర్టీసీ పల్లె వెలుగు, ఎక్స్‌ప్రెస్ మరియు డీలక్స్ బస్సు ప్రయాణాల్లో 25% టికెట్ రాయితీ మరియు బస్సుల్లో ప్రత్యేక సీట్లు లభిస్తాయి.
 **గడువు తేదీ (Deadline):** Open Year Round
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీఎస్ఆర్టీసీ అధికారిక పోర్టల్](https://apsrtc.ap.gov.in)
 
 5.
 **పథకం పేరు (Scheme Name):** ఇందిరా గాంధీ జాతీయ వృద్ధాప్య పింఛను పథకం (IGNOAPS - AP Direct DBT)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 సంవత్సరాలు పైబడిన బిపిఎల్ కుటుంబాల వృద్ధులు. పత్రాలు: ఆధార్ కార్డు, బిపిఎల్ రేషన్ కార్డు, బ్యాంకు పాస్‌బుక్.
+**అర్హతలు (Requirements):** 60 సంవత్సరాలు పైబడిన బిపిఎల్ కుటుంబాల వృద్ధులు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, బిపిఎల్ రేషన్ కార్డు, బ్యాంకు పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కేంద్ర మరియు రాష్ట్ర ప్రభుత్వాల సంయుక్త ఆర్థిక సహాయంతో నేరుగా బ్యాంకు ఖాతాలో డీబీటీ ద్వారా నెలవారీ సామాజిక భద్రతా పింఛను అందుతుంది.
 **గడువు తేదీ (Deadline):** Continuous Enrollment (Check Official Portal)
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ సోషల్ అసిస్టెన్స్ పోర్టల్](https://nsap.nic.in)`
@@ -309,35 +349,40 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** Andhra Pradesh NTR Bharosa Senior Citizen Pension Scheme (Old Age Pension)
-**Requirements:** Permanent resident of Andhra Pradesh aged 60 years or older, Family income under ₹1.44 Lakh (Rural) / ₹1.20 Lakh (Urban), White Ration Card / Rice Card holder. Documents: Aadhaar Card (age proof 60+), AP Rice Card, Aadhaar DBT-seeded Bank Passbook.
+**Requirements:** Permanent resident of Andhra Pradesh aged 60 years or older, Family income under ₹1.44 Lakh (Rural) / ₹1.20 Lakh (Urban), White Ration Card / Rice Card holder.
+**Document Requirements:** Aadhaar Card (age proof 60+), AP Rice Card, Aadhaar DBT-seeded Bank Passbook.
 **Why it suits you:** Delivers a monthly old age pension of ₹4,000 directly at your doorstep on the 1st of every single month through village/ward secretariats without standing in bank lines.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [AP SSPensions Portal](https://sspensions.ap.gov.in)
+**Official Portal Link:** [National Social Assistance Programme](https://nsap.gov.in)
 
 2.
 **Scheme Name:** Dr. NTR Vaidya Seva Geriatric & Senior Citizen Healthcare Support
-**Requirements:** Senior citizen aged 60+ resident of Andhra Pradesh, Annual family income under ₹5.00 Lakh. Documents: Aadhaar Card, NTR Vaidya Seva Health Card / Rice Card.
+**Requirements:** Senior citizen aged 60+ resident of Andhra Pradesh, Annual family income under ₹5.00 Lakh.
+**Document Requirements:** Aadhaar Card, NTR Vaidya Seva Health Card / Rice Card.
 **Why it suits you:** Full 100% cashless hospitalization up to ₹25,00,000 across empaneled hospitals covering geriatric conditions (cardiac, knee/hip joint replacement, cancer, oncology) plus ₹5,000/month post-operative recovery allowance.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Dr. NTR Vaidya Seva Trust](https://aarogyasri.ap.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
 
 3.
 **Scheme Name:** Andhra Pradesh Vayo Vandana Senior Citizen Assistive Devices Scheme
-**Requirements:** Senior citizen aged 60+ living in Andhra Pradesh from BPL household suffering from age-related physical disabilities. Documents: Aadhaar Card, Income Certificate, Medical Disability Certificate.
+**Requirements:** Senior citizen aged 60+ living in Andhra Pradesh from BPL household suffering from age-related physical disabilities.
+**Document Requirements:** Aadhaar Card, Income Certificate, Medical Disability Certificate.
 **Why it suits you:** 100% free distribution of assisted-living devices including digital hearing aids, foldable wheelchairs, walking sticks, spectacles, and artificial dentures.
 **Deadline:** Check Official Portal
-**Official Portal Link:** [AP Navasakam Portal](https://navasakam2.apcfss.in)
+**Official Portal Link:** [myScheme Government Portal](https://www.myscheme.gov.in)
 
 4.
 **Scheme Name:** Andhra Pradesh Senior Citizen APSRTC Bus Concession & Vrudhula Card
-**Requirements:** Senior citizens aged 60 years and above residing in Andhra Pradesh. Documents: Aadhaar Card / Senior Citizen Identity Card, Recent passport photo.
+**Requirements:** Senior citizens aged 60 years and above residing in Andhra Pradesh.
+**Document Requirements:** Aadhaar Card / Senior Citizen Identity Card, Recent passport photo.
 **Why it suits you:** Grants 25% bus travel fare concession across APSRTC Palle Velugu, Express, and Deluxe bus services statewide alongside reserved priority seating.
 **Deadline:** Open Year Round
 **Official Portal Link:** [APSRTC Official Portal](https://apsrtc.ap.gov.in)
 
 5.
 **Scheme Name:** Indira Gandhi National Old Age Pension Scheme (IGNOAPS - AP State Direct DBT)
-**Requirements:** Resident senior citizen aged 60 years or older belonging to below poverty line (BPL) household. Documents: Aadhaar Card, BPL Ration Card, Aadhaar DBT Bank Passbook.
+**Requirements:** Resident senior citizen aged 60 years or older belonging to below poverty line (BPL) household.
+**Document Requirements:** Aadhaar Card, BPL Ration Card, Aadhaar DBT Bank Passbook.
 **Why it suits you:** Centrally-assisted monthly social security pension combined with state supplemental funds credited directly into your Aadhaar-linked bank account.
 **Deadline:** Continuous Enrollment (Check Official Portal)
 **Official Portal Link:** [National Social Assistance Programme](https://nsap.nic.in)`;
@@ -347,155 +392,238 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ మహా శక్తి ఉచిత ఆర్టీసీ బస్సు ప్రయాణ పథకం (AP Maha Shakti Free Bus Travel for Women)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ నివాసితులైన బాలికలు మరియు మహిళలందరూ (వయస్సు మరియు ఆదాయ పరిమితి లేదు). పత్రాలు: ఆధార్ కార్డు లేదా ప్రభుత్వం గుర్తించిన ఏదైనా గుర్తింపు కార్డు.
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ నివాసితులైన బాలికలు మరియు మహిళలందరూ (వయస్సు మరియు ఆదాయ పరిమితి లేదు).
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు లేదా ప్రభుత్వం గుర్తించిన ఏదైనా గుర్తింపు కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఆంధ్రప్రదేశ్ రాష్ట్రవ్యాప్తంగా అన్ని ఏపీఎస్ఆర్టీసీ పల్లె వెలుగు మరియు ఎక్స్‌ప్రెస్ బస్సుల్లో ఎక్కడినుంచైనా ఎక్కడికైనా 100% పూర్తి ఉచిత ప్రయాణ సౌకర్యం (జీరో-టికెట్).
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీఎస్ఆర్టీసీ అధికారిక పోర్టల్](https://apsrtc.ap.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ మహా శక్తి ఆడబిడ్డ నిధి పథకం (Maha Shakti Aadabidda Nidhi)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 18 నుండి 59 సంవత్సరాల వయస్సు గల ఆంధ్రప్రదేశ్ మహిళలు, తెల్ల రేషన్ కార్డు హోల్డర్లు. పత్రాలు: ఆధార్ కార్డు, ఏపీ రైస్ కార్డ్, ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా.
+**అర్హతలు (Requirements):** 18 నుండి 59 సంవత్సరాల వయస్సు గల ఆంధ్రప్రదేశ్ మహిళలు, తెల్ల రేషన్ కార్డు హోల్డర్లు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డ్, ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి నెలా ₹1,500 (ఏడాదికి ₹18,000) ఆర్థిక సహాయం నేరుగా మహిళల వ్యక్తిగత బ్యాంకు ఖాతాలో డీబీటీ ద్వారా జమ చేయబడుతుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ నవశకం పోర్టల్](https://navasakam2.apcfss.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [మై స్కీమ్ పోర్టల్](https://www.myscheme.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ దీపం 2.0 ఉచిత గ్యాస్ సిలిండర్ల పథకం (AP Deepam 2.0 Free LPG Cylinders)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** తెల్ల రేషన్ కార్డు మరియు క్రియాశీల డొమెస్టిక్ ఎల్పీజీ కనెక్షన్ కలిగిన మహిళా కుటుంబ యజమానులు. పత్రాలు: ఆధార్ కార్డు, ఏపీ రైస్ కార్డ్, గ్యాస్ కనెక్షన్ పాస్‌బుక్.
+**అర్హతలు (Requirements):** తెల్ల రేషన్ కార్డు మరియు క్రియాశీల డొమెస్టిక్ ఎల్పీజీ కనెక్షన్ కలిగిన మహిళా కుటుంబ యజమానులు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డ్, గ్యాస్ కనెక్షన్ పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి సంవత్సరం 3 గృహ వంట గ్యాస్ సిలిండర్లను 100% ఉచితంగా డీబీటీ రీయింబర్స్‌మెంట్ ద్వారా అందిస్తుంది (డెలివరీ అయిన 48 గంటల్లో ఖాతాలో నగదు జమ).
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Open Year Round)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ స్పందన పోర్టల్](https://spandana.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)
 
 4.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ సున్నా వడ్డీ డ్వాక్రా రుణాల పథకం (AP Sunna Vaddi DWCRA Loans)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఏపీలో నమోదైన గ్రామీణ/పట్టణ డ్వాక్రా (SHG) మహిళా స్వయం సహాయక సంఘాల సభ్యులు, ₹5 లక్షల వరకు బ్యాంకు రుణాలు. పత్రాలు: స్వయం సహాయక సంఘం రికార్డులు, సభ్యుల ఆధార్, లోన్ పాస్‌బుక్.
+**అర్హతలు (Requirements):** ఏపీలో నమోదైన గ్రామీణ/పట్టణ డ్వాక్రా (SHG) మహిళా స్వయం సహాయక సంఘాల సభ్యులు, ₹5 లక్షల వరకు బ్యాంకు రుణాలు.
+**అవసరమైన పత్రాలు (Document Requirements):** స్వయం సహాయక సంఘం రికార్డులు, సభ్యుల ఆధార్ కార్డు, లోన్ పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** బ్యాంకు రుణాలపై అయ్యే పూర్తి వడ్డీని (0% వడ్డీ) ప్రభుత్వమే నేరుగా బ్యాంకులకు లేదా మహిళా ఖాతాలకు చెల్లించి మహిళా పారిశ్రామికవేత్తలను ప్రోత్సహిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ నవశకం పోర్టల్](https://navasakam2.apcfss.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [మై స్కీమ్ పోర్టల్](https://www.myscheme.gov.in)
 
 5.
-**పథకం పేరు (Scheme Name):** వైఎస్సార్ చేయూత & స్త్రీ నిధి మహిళా జీవనోపాధి పథకం (YSR Cheyutha & Stree Nidhi)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 45 నుండి 60 ఏళ్ల మధ్య వయస్సు గల ఎస్సీ, ఎస్టీ, బీసీ, మైనారిటీ వర్గాల మహిళలు. పత్రాలు: కుల ధృవీకరణ పత్రం, వయస్సు రుజువు, ఆధార్, బ్యాంక్ ఖాతా.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ చేయూత & స్త్రీ నిధి మహిళా జీవనోపాధి పథకం (Andhra Pradesh Cheyutha & Stree Nidhi)
+**అర్హతలు (Requirements):** 45 నుండి 60 ఏళ్ల మధ్య వయస్సు గల ఎస్సీ, ఎస్టీ, బీసీ, మైనారిటీ వర్గాల మహిళలు.
+**అవసరమైన పత్రాలు (Document Requirements):** కుల ధృవీకరణ పత్రం, వయస్సు రుజువు, ఆధార్ కార్డు, బ్యాంక్ ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మహిళల స్వయం ఉపాధి, పాడి పరిశ్రమ, కిరాణా వ్యాపారాల కోసం 4 ఏళ్లలో మొత్తం ₹75,000 (ఏడాదికి ₹18,750) ప్రత్యక్ష ఆర్థిక సహాయం లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ నవశకం పోర్టల్](https://navasakam2.apcfss.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [మై స్కీమ్ పోర్టల్](https://www.myscheme.gov.in)
 
 6.
-**పథకం పేరు (Scheme Name):** వైఎస్సార్ కళ్యాణ మస్తు & షాదీ ముబారక్ పథకం (YSR Kalyana Masthu & Shaadi Mubarak)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** వివాహం చేసుకునే పేద కుటుంబాల ఆడపిల్లలు (కనీస వయస్సు 18 సం., వరుడి వయస్సు 21 సం.), 10వ తరగతి ఉత్తీర్ణత. పత్రాలు: 10వ తరగతి సర్టిఫికెట్, ఆధార్ కార్డు, పెళ్లి కార్డు, ఆదాయ పత్రం.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ కళ్యాణ మస్తు & షాదీ ముబారక్ పథకం (Andhra Pradesh Kalyana Masthu & Shaadi Mubarak)
+**అర్హతలు (Requirements):** వివాహం చేసుకునే పేద కుటుంబాల ఆడపిల్లలు (కనీస వయస్సు 18 సం., వరుడి వయస్సు 21 సం.), 10వ తరగతి ఉత్తీర్ణత.
+**అవసరమైన పత్రాలు (Document Requirements):** 10వ తరగతి సర్టిఫికెట్, ఆధార్ కార్డు, పెళ్లి కార్డు, ఆదాయ పత్రం.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఆడపిల్లల గౌరవప్రదమైన వివాహం కోసం ₹1,00,000 వరకు నేరుగా వధువు తల్లి లేదా వధువు ఖాతాలో ఆర్థిక సహాయం జమ చేయబడుతుంది.
 **గడువు తేదీ (Deadline):** వివాహం జరిగిన 60 రోజుల్లోపు (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నవశకం కళ్యాణ మస్తు పోర్టల్](https://navasakam.ap.gov.in)`
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [మై స్కీమ్ పోర్టల్](https://www.myscheme.gov.in)`
         : `Here are verified active Government of Andhra Pradesh schemes tailored specifically for Women:
 
 1.
 **Scheme Name:** Andhra Pradesh Maha Shakti Scheme (Free RTC Bus Travel for Women)
-**Requirements:** All women, girls, and female students residing in Andhra Pradesh (no age or income restrictions). Documents: Aadhaar Card or recognised state photo identity card.
+**Requirements:** All women, girls, and female students residing in Andhra Pradesh (no age or income restrictions).
+**Document Requirements:** Aadhaar Card or recognised state photo identity card.
 **Why it suits you:** Enjoy 100% free, zero-fare bus travel on all APSRTC Palle Velugu and Express buses statewide without any journey distance limits.
 **Deadline:** Continuous Enrollment (Check Official Portal)
 **Official Portal Link:** [APSRTC Official Portal](https://apsrtc.ap.gov.in)
 
 2.
 **Scheme Name:** Andhra Pradesh Maha Shakti Aadabidda Nidhi Scheme
-**Requirements:** Women residents of Andhra Pradesh aged between 18 and 59 years, AP White Ration Card / Rice Card holder. Documents: Aadhaar Card, Rice Card, Aadhaar DBT-linked bank account.
+**Requirements:** Women residents of Andhra Pradesh aged between 18 and 59 years, AP White Ration Card / Rice Card holder.
+**Document Requirements:** Aadhaar Card, Rice Card, Aadhaar DBT-linked bank account.
 **Why it suits you:** Provides a direct monthly financial grant of ₹1,500 (₹18,000 per year) credited straight into your bank account for financial independence.
 **Deadline:** Check Official Portal
-**Official Portal Link:** [AP Navasakam Portal](https://navasakam2.apcfss.in)
+**Official Portal Link:** [myScheme Government Portal](https://www.myscheme.gov.in)
 
 3.
 **Scheme Name:** Andhra Pradesh Deepam 2.0 Scheme (3 Free LPG Cylinders)
-**Requirements:** Female head of household in Andhra Pradesh with active domestic LPG connection and Rice Card. Documents: Aadhaar Card, Rice Card, LPG Consumer Connection Passbook.
+**Requirements:** Female head of household in Andhra Pradesh with active domestic LPG connection and Rice Card.
+**Document Requirements:** Aadhaar Card, Rice Card, LPG Consumer Connection Passbook.
 **Why it suits you:** Grants 3 free domestic cooking gas cylinder refills per year with 100% DBT subsidy reimbursed directly into your bank account within 48 hours of delivery.
 **Deadline:** Open Year Round
-**Official Portal Link:** [AP Spandana Portal](https://spandana.ap.gov.in)
+**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)
 
 4.
 **Scheme Name:** Andhra Pradesh Sunna Vaddi (Zero Interest DWCRA Loans)
-**Requirements:** Women members of registered DWCRA Self Help Groups (SHG) in Andhra Pradesh with bank loans up to ₹5,00,000. Documents: SHG Registration, Member Aadhaar Card, Loan Passbook.
+**Requirements:** Women members of registered DWCRA Self Help Groups (SHG) in Andhra Pradesh with bank loans up to ₹5,00,000.
+**Document Requirements:** SHG Registration, Member Aadhaar Card, Loan Passbook.
 **Why it suits you:** The state government pays 100% of the loan interest on your behalf, effectively giving you zero-interest working capital for micro-enterprises.
 **Deadline:** Open Year Round
-**Official Portal Link:** [AP Navasakam Portal](https://navasakam2.apcfss.in)
+**Official Portal Link:** [myScheme Government Portal](https://www.myscheme.gov.in)
 
 5.
-**Scheme Name:** Andhra Pradesh YSR Cheyutha & Stree Nidhi Livelihood Scheme
-**Requirements:** Women aged 45 to 60 years from SC, ST, BC, and Minority communities in AP holding White Ration Card. Documents: Integrated Caste Certificate, Aadhaar Card, Age Proof, Bank Passbook.
+**Scheme Name:** Andhra Pradesh Cheyutha & Stree Nidhi Livelihood Scheme
+**Requirements:** Women aged 45 to 60 years from SC, ST, BC, and Minority communities in AP holding White Ration Card.
+**Document Requirements:** Integrated Caste Certificate, Aadhaar Card, Age Proof, Bank Passbook.
 **Why it suits you:** Provides ₹18,750 per year (totaling ₹75,000 over 4 years) direct financial assistance for sustainable livelihoods (dairy, grocery, retail enterprises).
 **Deadline:** Check Official Portal
-**Official Portal Link:** [AP Navasakam Portal](https://navasakam2.apcfss.in)
+**Official Portal Link:** [myScheme Government Portal](https://www.myscheme.gov.in)
 
 6.
-**Scheme Name:** Andhra Pradesh YSR Kalyana Masthu & Shaadi Mubarak Scheme
-**Requirements:** Resident bride marrying with both bride (18+) and groom (21+) having passed Class 10, Family income under ₹1.44 Lakh (Rural) / ₹1.20 Lakh (Urban). Documents: Class 10 SSC Certificates, Aadhaar Cards, Wedding Card, Rice Card.
+**Scheme Name:** Andhra Pradesh Kalyana Masthu & Shaadi Mubarak Scheme
+**Requirements:** Resident bride marrying with both bride (18+) and groom (21+) having passed Class 10, Family income under ₹1.44 Lakh (Rural) / ₹1.20 Lakh (Urban).
+**Document Requirements:** Class 10 SSC Certificates, Aadhaar Cards, Wedding Card, Rice Card.
 **Why it suits you:** Grants ₹1,00,000 direct financial assistance deposited into the bride's/mother's bank account to support dignified marriage ceremonies.
 **Deadline:** Within 60 days of marriage (Check Official Portal)
-**Official Portal Link:** [AP Navasakam Portal](https://navasakam2.apcfss.in)`;
+**Official Portal Link:** [myScheme Government Portal](https://www.myscheme.gov.in)`;
     } else if (isStudent) {
+      const isFemaleStudent = (userProfile?.gender || '').toLowerCase() === 'female';
+
       return isTeluguRequested
         ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా ధృవీకరించబడిన ఆంధ్రప్రదేశ్ రాష్ట్ర ప్రభుత్వ పథకాలు & స్కాలర్‌షిప్‌లు క్రింద వివరించబడ్డాయి:
 
-1.
-**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ విద్యా దీవెన - పూర్తి ఫీజు రీయింబర్స్‌మెంట్ (JnanaBhumi Vidya Deevena)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, ITI/పాలిటెక్నిక్/డిగ్రీ/ఇంజనీరింగ్/పీజీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు, 75% హాజరు. పత్రాలు: జ్ఞానభూమి ఐడీ, మీసేవ కుల ధృవీకరణ పత్రం, తెల్ల రేషన్ కార్డు / ఆదాయ పత్రం, తల్లి బ్యాంక్ పాస్‌బుక్, కాలేజీ బోనఫైడ్.
+${isFemaleStudent ? `1.
+**పథకం పేరు (Scheme Name):** ఏఐసీటీఈ ప్రగతి బాలికల సాంకేతిక విద్యా స్కాలర్‌షిప్ పథకం (AICTE Pragati Scholarship for Girls)
+**అర్హతలు (Requirements):** ఏపీలో AICTE గుర్తింపు పొందిన ఇంజనీరింగ్ (B.Tech) లేదా పాలిటెక్నిక్ డిప్లొమా 1వ సంవత్సరంలో ప్రవేశం పొందిన బాలికలు, కుటుంబ వార్షిక ఆదాయం ₹8.00 లక్షల లోపు, కుటుంబంలో గరిష్టంగా ఇద్దరు ఆడపిల్లలకు వర్తిస్తుంది.
+**అవసరమైన పత్రాలు (Document Requirements):** బాలిక ఆధార్ కార్డు, 10వ & 12వ / ఎంట్రన్స్ ర్యాంక్ కార్డు, కాలేజీ అలాట్‌మెంట్ ఆర్డర్ & ఫీజు రసీదు, ఆదాయ పత్రం (₹8 లక్షల లోపు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా పాస్‌బుక్.
+**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఇంజనీరింగ్ 4 సంవత్సరాలు లేదా డిప్లొమా 3 సంవత్సరాల పాటు ప్రతి సంవత్సరం ₹50,000 (మొత్తం ₹2,00,000 వరకు) ప్రత్యక్ష నగదు సహాయం లభిస్తుంది.
+**గడువు తేదీ (Deadline):** 31 December 2026
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ స్కాలర్‌షిప్ పోర్టల్](https://scholarships.gov.in)
+
+2.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ విద్యా దీవెన - పూర్తి ఫీజు రీయింబర్స్‌మెంట్ (Andhra Pradesh Vidya Deevena)
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, ITI/పాలిటెక్నిక్/డిగ్రీ/ఇంజనీరింగ్/పీజీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు, 75% హాజరు.
+**అవసరమైన పత్రాలు (Document Requirements):** జ్ఞానభూమి ఐడీ, మీసేవ కుల ధృవీకరణ పత్రం, తెల్ల రేషన్ కార్డు / ఆదాయ పత్రం, తల్లి బ్యాంక్ పాస్‌బుక్, కాలేజీ బోనఫైడ్.
+**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మీ విద్యా కోర్సుకు సంబంధించి పూర్తి కాలేజీ ట్యూషన్ ఫీజును ప్రభుత్వం నేరుగా మంజూరు చేస్తుంది.
+**గడువు తేదీ (Deadline):** 15 November 2026
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [జ్ఞానభూమి ఏపీ పోర్టల్](https://jnanabhumi.ap.gov.in)
+
+3.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వసతి దీవెన - వసతి మరియు భోజన ఖర్చుల సహాయం (Andhra Pradesh Vasathi Deevena)
+**అర్హతలు (Requirements):** పాలిటెక్నిక్, ఐటీఐ, డిగ్రీ లేదా ఇంజనీరింగ్ చదువుతున్న ఏపీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, కాలేజీ బోనఫైడ్, తల్లి ఆధార్-డీబీటీ ఖాతా పాస్‌బుక్.
+**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** హాస్టల్ వసతి మరియు భోజన ఖర్చుల కోసం డిగ్రీ/ఇంజనీరింగ్ విద్యార్థులకు ఏటా ₹20,000 నగదు సహాయం 2 విడతల్లో అందుతుంది.
+**గడువు తేదీ (Deadline):** 15 November 2026
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [జ్ఞానభూమి ఏపీ పోర్టల్](https://jnanabhumi.ap.gov.in)
+
+4.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ మహా శక్తి ఉచిత ఆర్టీసీ బస్సు ప్రయాణ పథకం (AP Maha Shakti Free RTC Bus Travel)
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ విద్యార్థినులు మరియు మహిళలందరూ.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు / విద్యార్థి గుర్తింపు కార్డు.
+**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కళాశాల మరియు కోచింగ్ ప్రయాణాలకు ఆర్టీసీ పల్లె వెలుగు మరియు ఎక్స్‌ప్రెస్ బస్సుల్లో 100% ఉచిత జీరో-టికెట్ ప్రయాణం.
+**గడువు తేదీ (Deadline):** Open Year Round
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీఎస్ఆర్టీసీ అధికారిక పోర్టల్](https://apsrtc.ap.gov.in)` : `1.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ విద్యా దీవెన - పూర్తి ఫీజు రీయింబర్స్‌మెంట్ (Andhra Pradesh Vidya Deevena)
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, ITI/పాలిటెక్నిక్/డిగ్రీ/ఇంజనీరింగ్/పీజీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు, 75% హాజరు.
+**అవసరమైన పత్రాలు (Document Requirements):** జ్ఞానభూమి ఐడీ, మీసేవ కుల ధృవీకరణ పత్రం, తెల్ల రేషన్ కార్డు / ఆదాయ పత్రం, తల్లి బ్యాంక్ పాస్‌బుక్, కాలేజీ బోనఫైడ్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మీ విద్యా కోర్సుకు సంబంధించి పూర్తి కాలేజీ ట్యూషన్ ఫీజును ప్రభుత్వం నేరుగా మంజూరు చేస్తుంది.
 **గడువు తేదీ (Deadline):** 15 November 2026
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [జ్ఞానభూమి ఏపీ పోర్టల్](https://jnanabhumi.ap.gov.in)
 
 2.
-**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వసతి దీవెన - వసతి మరియు భోజన ఖర్చుల సహాయం (JnanaBhumi Vasathi Deevena)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** పాలిటెక్నిక్, ఐటీఐ, డిగ్రీ లేదా ఇంజనీరింగ్ చదువుతున్న ఏపీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు. పత్రాలు: ఆధార్ కార్డు, కాలేజీ బోనఫైడ్, తల్లి ఆధార్-డీబీటీ ఖాతా పాస్‌బుక్.
+**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వసతి దీవెన - వసతి మరియు భోజన ఖర్చుల సహాయం (Andhra Pradesh Vasathi Deevena)
+**అర్హతలు (Requirements):** పాలిటెక్నిక్, ఐటీఐ, డిగ్రీ లేదా ఇంజనీరింగ్ చదువుతున్న ఏపీ విద్యార్థులు, కుటుంబ వార్షిక ఆదాయం ₹2.5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, కాలేజీ బోనఫైడ్, తల్లి ఆధార్-డీబీటీ ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** హాస్టల్ వసతి మరియు భోజన ఖర్చుల కోసం డిగ్రీ/ఇంజనీరింగ్ విద్యార్థులకు ఏటా ₹20,000 నగదు సహాయం 2 విడతల్లో అందుతుంది.
 **గడువు తేదీ (Deadline):** 15 November 2026
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [జ్ఞానభూమి ఏపీ పోర్టల్](https://jnanabhumi.ap.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - ఉచిత నగదు రహిత వైద్య చికిత్స (Dr. NTR Vaidya Seva)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ రైస్ కార్డు / వైట్ రేషన్ కార్డుదారులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు. పత్రాలు: ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ రైస్ కార్డు / వైట్ రేషన్ కార్డుదారులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కుటుంబానికి ప్రతి సంవత్సరం ₹25 లక్షల వరకు అధునాతన నెట్‌వర్క్ ఆసుపత్రులలో పూర్తి ఉచిత నగదు రహిత ఆరోగ్య చికిత్సను ప్రభుత్వం అందిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ట్రస్ట్](https://aarogyasri.ap.gov.in)`
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)`}`
         : `Here are verified active Government of Andhra Pradesh state welfare schemes matching your student credentials:
 
-1.
-**Scheme Name:** Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement via JnanaBhumi)
-**Requirements:** Permanent resident of Andhra Pradesh pursuing ITI, Polytechnic, Degree, Engineering, or PG courses, Annual family income under ₹2.5 Lakh, 75% attendance. Documents: Aadhaar Card, AP Rice Card / Income Certificate, Integrated Caste Certificate from MeeSeva, College Bonafide, Mother's Aadhaar DBT Bank Account.
+${isFemaleStudent ? `1.
+**Scheme Name:** AICTE Pragati Scholarship Scheme for Girl Students in Technical Education (AP)
+**Requirements:** Girl student resident of Andhra Pradesh admitted to 1st year of AICTE-approved Degree/Diploma course, Family annual income must not exceed ₹8,00,000 per annum, Maximum two girl children per family eligible.
+**Document Requirements:** Aadhaar Card of girl student, 10th & 12th / Polytechnic Entrance rank card and marks memo, Allotment letter & Fee receipt from AICTE-approved engineering/polytechnic college, Family Income Certificate (below ₹8 Lakhs), Aadhaar-linked Bank Passbook.
+**Why it suits you:** Provides ₹50,000 per year (Total ₹2,00,000 for B.Tech / ₹1,50,000 for Polytechnic) direct entitlement.
+**Deadline:** 31 December 2026
+**Official Portal Link:** [National Scholarship Portal](https://scholarships.gov.in)
+
+2.
+**Scheme Name:** Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement)
+**Requirements:** Permanent resident of Andhra Pradesh pursuing ITI, Polytechnic, Degree, Engineering, or PG courses, Annual family income under ₹2.5 Lakh, 75% attendance.
+**Document Requirements:** Aadhaar Card, AP Rice Card / Income Certificate, Integrated Caste Certificate from MeeSeva, College Bonafide, Mother's Aadhaar DBT Bank Account.
+**Why it suits you:** Covers 100% full college tuition fee reimbursement paid directly by the state government to support your higher education.
+**Deadline:** 15 November 2026
+**Official Portal Link:** [JnanaBhumi AP Portal](https://jnanabhumi.ap.gov.in)
+
+3.
+**Scheme Name:** Andhra Pradesh Vasathi Deevena (Hostel & Boarding Grant)
+**Requirements:** Enrolled in regular ITI, Polytechnic, Degree, or Engineering colleges in Andhra Pradesh, Family annual income under ₹2.5 Lakh.
+**Document Requirements:** Aadhaar Card, College Study Certificate, Rice Card, Mother's Bank Passbook.
+**Why it suits you:** Grants up to ₹20,000/year (Degree/Engineering), ₹15,000/year (Polytechnic), and ₹10,000/year (ITI) directly to cover food and hostel expenses.
+**Deadline:** 15 November 2026
+**Official Portal Link:** [JnanaBhumi AP Portal](https://jnanabhumi.ap.gov.in)
+
+4.
+**Scheme Name:** Andhra Pradesh Maha Shakti Scheme (Free RTC Bus Travel for Women & Students)
+**Requirements:** All women, girls, and female students residing in Andhra Pradesh.
+**Document Requirements:** Aadhaar Card or student identity card.
+**Why it suits you:** Enjoy 100% free, zero-fare bus travel on all APSRTC Palle Velugu and Express buses across Andhra Pradesh for daily college commute.
+**Deadline:** Open Year Round
+**Official Portal Link:** [APSRTC Official Portal](https://apsrtc.ap.gov.in)` : `1.
+**Scheme Name:** Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement)
+**Requirements:** Permanent resident of Andhra Pradesh pursuing ITI, Polytechnic, Degree, Engineering, or PG courses, Annual family income under ₹2.5 Lakh, 75% attendance.
+**Document Requirements:** Aadhaar Card, AP Rice Card / Income Certificate, Integrated Caste Certificate from MeeSeva, College Bonafide, Mother's Aadhaar DBT Bank Account.
 **Why it suits you:** Covers 100% full college tuition fee reimbursement paid directly by the state government to support your higher education.
 **Deadline:** 15 November 2026
 **Official Portal Link:** [JnanaBhumi AP Portal](https://jnanabhumi.ap.gov.in)
 
 2.
-**Scheme Name:** Andhra Pradesh Vasathi Deevena (Hostel & Boarding Grant via JnanaBhumi)
-**Requirements:** Enrolled in regular ITI, Polytechnic, Degree, or Engineering colleges in Andhra Pradesh, Family annual income under ₹2.5 Lakh. Documents: Aadhaar Card, College Study Certificate, Rice Card, Mother's Bank Passbook.
+**Scheme Name:** Andhra Pradesh Vasathi Deevena (Hostel & Boarding Grant)
+**Requirements:** Enrolled in regular ITI, Polytechnic, Degree, or Engineering colleges in Andhra Pradesh, Family annual income under ₹2.5 Lakh.
+**Document Requirements:** Aadhaar Card, College Study Certificate, Rice Card, Mother's Bank Passbook.
 **Why it suits you:** Grants up to ₹20,000/year (Degree/Engineering), ₹15,000/year (Polytechnic), and ₹10,000/year (ITI) directly to cover food and hostel expenses.
 **Deadline:** 15 November 2026
 **Official Portal Link:** [JnanaBhumi AP Portal](https://jnanabhumi.ap.gov.in)
 
 3.
 **Scheme Name:** Dr. NTR Vaidya Seva Comprehensive Healthcare Scheme
-**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh. Documents: Aadhaar Card, AP Rice Card / Health Card.
+**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh.
+**Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Protects your entire family with cashless inpatient hospital coverage up to ₹25 Lakhs per year across empaneled hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva Trust](https://aarogyasri.ap.gov.in)`;
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)`}`;
     } else if (isFarmer) {
       return isTeluguRequested
         ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా ధృవీకరించబడిన ఆంధ్రప్రదేశ్ రైతు సంక్షేమ పథకాలు క్రింద వివరించబడ్డాయి:
 
 1.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ అన్నదాత సుఖీభవ - పీఎం కిసాన్ పథకం (AP Annadata Sukhibhava)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఏపీ రైతు లేదా గుర్తింపు పొందిన కౌలు రైతు (CCRC కార్డుదారుడు), ఈ-క్రాప్ నమోదు. పత్రాలు: పట్టాదారు పాస్‌బుక్ / 1B, CCRC కార్డు, ఆధార్ లింక్డ్ బ్యాంక్ ఖాతా.
+**అర్హతలు (Requirements):** ఏపీ రైతు లేదా గుర్తింపు పొందిన కౌలు రైతు (CCRC కార్డుదారుడు), ఈ-క్రాప్ నమోదు.
+**అవసరమైన పత్రాలు (Document Requirements):** పట్టాదారు పాస్‌బుక్ / 1B, CCRC కార్డు, ఆధార్ లింక్డ్ బ్యాంక్ ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి సంవత్సరం ₹20,000 (రాష్ట్ర ప్రభుత్వం ₹14,000 + కేంద్రం ₹6,000) పెట్టుబడి సాయంగా 3 విడతల్లో నేరుగా అందుతుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ వ్యవసాయ శాఖ పోర్టల్](https://apagrisnet.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం కిసాన్ & అన్నదాత సుఖీభవ పోర్టల్](https://pmkisan.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ (Dr. NTR Vaidya Seva Healthcare)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, రైస్ కార్డు కలిగిన కుటుంబాలు. పత్రాలు: ఆధార్ కార్డు, రైస్ కార్డు.
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, రైస్ కార్డు కలిగిన కుటుంబాలు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఏటా ₹25 లక్షల వరకు కుటుంబానికి సూపర్ స్పెషాలిటీ ఆసుపత్రులలో ఉచిత నగదు రహిత చికిత్స అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ట్రస్ట్](https://aarogyasri.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** దీపం 2.0 ఉచిత గ్యాస్ సిలిండర్ల పథకం (AP Deepam 2.0 Free LPG)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఏపీ మహిళలు / కుటుంబాలు, తెల్ల రేషన్ కార్డు మరియు ఎల్పీజీ కనెక్షన్. పత్రాలు: రేషన్ కార్డు, గ్యాస్ పాస్‌బుక్, ఆధార్ కార్డు.
+**అర్హతలు (Requirements):** ఏపీ మహిళలు / కుటుంబాలు, తెల్ల రేషన్ కార్డు మరియు ఎల్పీజీ కనెక్షన్.
+**అవసరమైన పత్రాలు (Document Requirements):** రేషన్ కార్డు, గ్యాస్ పాస్‌బుక్, ఆధార్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** సంవత్సరానికి 3 గృహ ఎల్పీజీ సిలిండర్లను 100% ఉచితంగా డీబీటీ రీఫండ్ ద్వారా అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)`
@@ -503,21 +631,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** Andhra Pradesh Annadata Sukhibhava - PM KISAN Farmer Grant
-**Requirements:** Resident farmer or tenant cultivator in Andhra Pradesh, Valid Pattadar Passbook or CCRC Card. Documents: Land records, Aadhaar Card, Aadhaar-linked Bank Passbook.
+**Requirements:** Resident farmer or tenant cultivator in Andhra Pradesh, Valid Pattadar Passbook or CCRC Card.
+**Document Requirements:** Land records (Pattadar Passbook / 1B), Aadhaar Card, Aadhaar-linked Bank Passbook.
 **Why it suits you:** Provides ₹20,000 per year (₹14,000 AP State Assistance + ₹6,000 PM-KISAN) direct income and crop input subsidy.
 **Deadline:** Open Year Round
-**Official Portal Link:** [AP Agriculture Portal](https://apagrisnet.gov.in)
+**Official Portal Link:** [PM-KISAN & Annadata Sukhibhava Portal](https://pmkisan.gov.in)
 
 2.
 **Scheme Name:** Dr. NTR Vaidya Seva Comprehensive Healthcare Scheme
-**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh. Documents: Aadhaar Card, AP Rice Card.
+**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh.
+**Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Protects your family with cashless inpatient hospital coverage up to ₹25 Lakhs per year across empaneled hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva Trust](https://aarogyasri.ap.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
 
 3.
 **Scheme Name:** Andhra Pradesh Deepam 2.0 Free Domestic LPG Scheme
-**Requirements:** Resident family in Andhra Pradesh with domestic active LPG connection and White Ration Card. Documents: Aadhaar Card, LPG Consumer Number, AP Rice Card.
+**Requirements:** Resident family in Andhra Pradesh with domestic active LPG connection and White Ration Card.
+**Document Requirements:** Aadhaar Card, LPG Consumer Connection Passbook, AP Rice Card.
 **Why it suits you:** Grants 3 free LPG domestic cooking gas refills every year credited directly through DBT subsidy.
 **Deadline:** Open Year Round
 **Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)`;
@@ -528,21 +659,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - ఉచిత నగదు రహిత వైద్య చికిత్స (Dr. NTR Vaidya Seva)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, ఏపీ రైస్ కార్డు / వైట్ రేషన్ కార్డుదారులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు. పత్రాలు: ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ వాస్తవ్యులు, ఏపీ రైస్ కార్డు / వైట్ రేషన్ కార్డుదారులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కుటుంబానికి ప్రతి సంవత్సరం ₹25 లక్షల వరకు అధునాతన ఆసుపత్రులలో 100% ఉచిత నగదు రహిత ఆరోగ్య చికిత్స లభిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ట్రస్ట్](https://aarogyasri.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** దీపం 2.0 ఉచిత గ్యాస్ సిలిండర్ల పథకం (AP Deepam 2.0 Free LPG)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ కుటుంబాలు, తెల్ల రేషన్ కార్డు మరియు క్రియాశీల ఎల్పీజీ కనెక్షన్. పత్రాలు: రేషన్ కార్డు, గ్యాస్ బుక్, ఆధార్ కార్డు.
+**అర్హతలు (Requirements):** ఆంధ్రప్రదేశ్ కుటుంబాలు, తెల్ల రేషన్ కార్డు మరియు క్రియాశీల ఎల్పీజీ కనెక్షన్.
+**అవసరమైన పత్రాలు (Document Requirements):** రేషన్ కార్డు, గ్యాస్ పాస్‌బుక్, ఆధార్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఏడాదికి 3 గృహ వంట గ్యాస్ సిలిండర్లను పూర్తి ఉచితంగా సబ్సిడీ రూపంలో అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ నవరత్నాలు గృహ నిర్మాణ పథకం (AP Housing Scheme)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** శాశ్వత నివాస గృహం లేని ఏపీ నివాసితులు, వార్షిక ఆదాయ పరిమితి ₹3 లక్షల లోపు. పత్రాలు: ఆధార్, ఆదాయ ధృవీకరణ పత్రం, ఇళ్ల స్థలం పట్టా.
+**అర్హతలు (Requirements):** శాశ్వత నివాస గృహం లేని ఏపీ నివాసితులు, వార్షిక ఆదాయ పరిమితి ₹3 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, ఇళ్ల స్థలం పట్టా.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** పక్కా గృహ నిర్మాణానికి ప్రభుత్వ సబ్సిడీ మరియు ఆర్థిక సహాయాన్ని మంజూరు చేస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏపీ హౌసింగ్ కార్పొరేషన్](https://housing.ap.gov.in)`
@@ -550,21 +684,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** Dr. NTR Vaidya Seva Comprehensive Healthcare Scheme
-**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh. Documents: Aadhaar Card, AP Rice Card / Health Card.
+**Requirements:** Resident of Andhra Pradesh holding AP Rice Card / White Ration Card, Annual family income under ₹5.00 Lakh.
+**Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Cashless inpatient hospital coverage up to ₹25 Lakhs per family per year across empaneled super-specialty hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva Trust](https://aarogyasri.ap.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
 
 2.
 **Scheme Name:** Andhra Pradesh Deepam 2.0 Free Domestic LPG Scheme
-**Requirements:** Domestic household resident in Andhra Pradesh holding White Ration Card and active LPG connection. Documents: Aadhaar Card, LPG Consumer Connection Passbook, AP Rice Card.
+**Requirements:** Domestic household resident in Andhra Pradesh holding White Ration Card and active LPG connection.
+**Document Requirements:** Aadhaar Card, LPG Consumer Connection Passbook, AP Rice Card.
 **Why it suits you:** Provides 3 free cooking gas cylinder refills every year with 100% cost refund through DBT.
 **Deadline:** Open Year Round
 **Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)
 
 3.
 **Scheme Name:** Andhra Pradesh Navaratnalu Pucca Housing Assistance
-**Requirements:** Resident of Andhra Pradesh without a permanent pucca house, Annual income under ₹3.00 Lakh. Documents: Aadhaar Card, Income Certificate, Residential Plot Patta.
+**Requirements:** Resident of Andhra Pradesh without a permanent pucca house, Annual income under ₹3.00 Lakh.
+**Document Requirements:** Aadhaar Card, Income Certificate, Residential Plot Patta.
 **Why it suits you:** Subsidized pucca house construction assistance and building materials facilitation.
 **Deadline:** Check Official Portal
 **Official Portal Link:** [AP State Housing Corporation](https://housing.ap.gov.in)`;
@@ -927,21 +1064,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** Pradhan Mantri Ujjwala Yojana (PMUY - Free Domestic LPG Connection & Subsidy)
-**Requirements:** Adult woman (18+) belonging to poor / BPL household without existing LPG connection. Documents: Aadhaar Card, BPL Ration Card, Bank Passbook.
+**Requirements:** Adult woman (18+) belonging to poor / BPL household without existing LPG connection.
+**Document Requirements:** Aadhaar Card, BPL Ration Card, Bank Passbook.
 **Why it suits you:** Grants a free LPG cylinder connection with stove, and ₹300 direct per-cylinder subsidy credited into your bank account.
 **Deadline:** Continuous Enrollment (Check Official Portal)
 **Official Portal Link:** [PM Ujjwala Yojana Portal](https://pmuy.gov.in)
 
 2.
 **Scheme Name:** Stand-Up India Scheme for Women Entrepreneurs
-**Requirements:** Female entrepreneurs aged 18+ establishing greenfield enterprises in manufacturing, services, or trading sectors. Documents: Business Project Report, Aadhaar, PAN Card, KYC.
+**Requirements:** Female entrepreneurs aged 18+ establishing greenfield enterprises in manufacturing, services, or trading sectors.
+**Document Requirements:** Business Project Report, Aadhaar Card, PAN Card, KYC documents.
 **Why it suits you:** Facilitates bank loans between ₹10 Lakh and ₹1 Crore with composite support to jumpstart your business venture.
 **Deadline:** Open Year Round
 **Official Portal Link:** [Stand-Up India Portal](https://standupmitra.in)
 
 3.
 **Scheme Name:** Pradhan Mantri Matru Vandana Yojana (PMMVY - Direct Cash Maternity Benefit)
-**Requirements:** Pregnant women and lactating mothers for first living child (and second if female), holding ration card. Documents: Mother and Child Protection (MCP) Card, Aadhaar, Bank Passbook.
+**Requirements:** Pregnant women and lactating mothers for first living child (and second if female), holding ration card.
+**Document Requirements:** Mother and Child Protection (MCP) Card, Aadhaar Card, Bank Passbook.
 **Why it suits you:** Direct cash incentive of up to ₹6,000 disbursed in installments into your bank account for nutritional care and wage compensation.
 **Deadline:** Check Official Portal
 **Official Portal Link:** [PMMVY Official Portal](https://pmmvy.wcd.gov.in)`;
@@ -951,21 +1091,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** పీఎం యశస్వి కేంద్రీయ స్కాలర్‌షిప్ పథకం (PM-YASASVI)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** OBC/EBC/DNT విద్యార్థులు, వార్షిక కుటుంబ ఆదాయం ₹2.5 లక్షల లోపు. పత్రాలు: ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, కుల ధృవీకరణ పత్రం, బోనఫైడ్, ఆధార్ డీబీటీ బ్యాంకు ఖాతా.
+**అర్హతలు (Requirements):** OBC/EBC/DNT విద్యార్థులు, వార్షిక కుటుంబ ఆదాయం ₹2.5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, కుల ధృవీకరణ పత్రం, బోనఫైడ్, ఆధార్ డీబీటీ బ్యాంకు ఖాతా.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మీ విద్యా స్థాయి మరియు సామాజిక వర్గానికి కేంద్ర ప్రభుత్వం ద్వారా నేరుగా డీబీటీ స్కాలర్‌షిప్ అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ స్కాలర్‌షిప్ పోర్టల్](https://scholarships.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** సెంట్రల్ సెక్టార్ స్కాలర్‌షిప్ ఫర్ కాలేజ్ & యూనివర్సిటీ స్టూడెంట్స్ (CSSS via NSP)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 12వ తరగతి బోర్డు పరీక్షల్లో 80వ పర్సంటైల్ సాధించిన రెగ్యులర్ డిగ్రీ విద్యార్థులు, వార్షిక కుటుంబ ఆదాయం ₹4.5 లక్షల లోపు. పత్రాలు: 12వ మార్కుల మెమో, కాలేజీ బోనఫైడ్, ఆదాయ ధృవీకరణ పత్రం.
+**అర్హతలు (Requirements):** 12వ తరగతి బోర్డు పరీక్షల్లో 80వ పర్సంటైల్ సాధించిన రెగ్యులర్ డిగ్రీ విద్యార్థులు, వార్షిక కుటుంబ ఆదాయం ₹4.5 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** 12వ మార్కుల మెమో, కాలేజీ బోనఫైడ్, ఆదాయ ధృవీకరణ పత్రం.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** గ్రాడ్యుయేషన్ కోసం ప్రతి ఏటా ₹12,000 మరియు పోస్ట్ గ్రాడ్యుయేషన్ కోసం ₹20,000 ఆర్థిక సహాయం నేరుగా అందుతుంది.
 **గడువు తేదీ (Deadline):** 31 December 2026
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ స్కాలర్‌షిప్ పోర్టల్](https://scholarships.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** పీఎం విద్యా లక్ష్మి ఉన్నత విద్యా లోన్ వడ్డీ రాయితీ పథకం (PM Vidyalaxmi)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** నాణ్యమైన ఉన్నత విద్యా సంస్థల్లో (QHEIs) ప్రవేశం పొందిన విద్యార్థులు, కుటుంబ ఆదాయం ₹8 లక్షల లోపు. పత్రాలు: కాలేజీ అడ్మిషన్ లెటర్, ఫీజు రసీదు, ఆధార్, పాన్ కార్డు.
+**అర్హతలు (Requirements):** నాణ్యమైన ఉన్నత విద్యా సంస్థల్లో (QHEIs) ప్రవేశం పొందిన విద్యార్థులు, కుటుంబ ఆదాయం ₹8 లక్షల లోపు.
+**అవసరమైన పత్రాలు (Document Requirements):** కాలేజీ అడ్మిషన్ లెటర్, ఫీజు రసీదు, ఆధార్, పాన్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** గ్యారంటీ లేకుండా ₹7.5 లక్షల వరకు 3% వడ్డీ రాయితీతో విద్యా రుణాన్ని అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం విద్యా లక్ష్మి పోర్టల్](https://www.pmvidyalaxmi.gov.in)`
@@ -973,21 +1116,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** PM-YASASVI Central Sector Scholarship Scheme for Top Class Education
-**Requirements:** Meritorious OBC, EBC, and DNT students studying in recognized institutions, Annual family income under ₹2.50 Lakh. Documents: Aadhaar Card, Income Certificate, Community/Caste Certificate, Bank Passbook, Admission Proof.
+**Requirements:** Meritorious OBC, EBC, and DNT students studying in recognized institutions, Annual family income under ₹2.50 Lakh.
+**Document Requirements:** Aadhaar Card, Income Certificate, Community/Caste Certificate, Bank Passbook, Admission Proof.
 **Why it suits you:** Provides complete financial assistance covering full tuition fees and hostel maintenance directly through Direct Benefit Transfer (DBT).
 **Deadline:** Check Official Portal
 **Official Portal Link:** [National Scholarship Portal](https://scholarships.gov.in)
 
 2.
 **Scheme Name:** Central Sector Scheme of Scholarship for College and University Students (CSSS)
-**Requirements:** Above 80th percentile in Class 12 board examination pursuing regular graduation courses, Annual family income under ₹4.50 Lakh. Documents: Class 12 Marks Card, College Bonafide Certificate, Income Certificate.
+**Requirements:** Above 80th percentile in Class 12 board examination pursuing regular graduation courses, Annual family income under ₹4.50 Lakh.
+**Document Requirements:** Class 12 Marks Card, College Bonafide Certificate, Income Certificate.
 **Why it suits you:** Grants ₹12,000 per annum for graduation and ₹20,000 per annum for post-graduation directly to student bank accounts.
 **Deadline:** 31 December 2026
 **Official Portal Link:** [National Scholarship Portal](https://scholarships.gov.in)
 
 3.
 **Scheme Name:** PM Vidyalaxmi Education Loan Scheme (Interest Subvention for Higher Studies)
-**Requirements:** Indian students admitted to top NIRF-ranked Quality Higher Education Institutions (QHEIs), Family income up to ₹8.00 Lakh. Documents: Admission Letter, College Fee Structure, Aadhaar Card, PAN Card.
+**Requirements:** Indian students admitted to top NIRF-ranked Quality Higher Education Institutions (QHEIs), Family income up to ₹8.00 Lakh.
+**Document Requirements:** Admission Letter, College Fee Structure, Aadhaar Card, PAN Card.
 **Why it suits you:** Provides collateral-free student education loans up to ₹7.50 Lakh with a 3% interest subvention for eligible candidates.
 **Deadline:** Check Official Portal
 **Official Portal Link:** [PM Vidyalaxmi Portal](https://www.pmvidyalaxmi.gov.in)`;
@@ -997,43 +1143,49 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** పీఎం కిసాన్ సమ్మాన్ నిధి (PM-KISAN)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** సాగు భూమి కలిగిన భారతీయ రైతులు, ఈ-కేవైసీ పూర్తి. పత్రాలు: భూమి రికార్డులు (పాస్‌బుక్), ఆధార్ కార్డు, ఆధార్-డీబీటీ బ్యాంక్ ఖాతా.
+**అర్హతలు (Requirements):** సాగు భూమి కలిగిన భారతీయ రైతులు, ఈ-కేవైసీ పూర్తి.
+**అవసరమైన పత్రాలు (Document Requirements):** భూమి రికార్డులు (పాస్‌బుక్), ఆధార్ కార్డు, ఆధార్-డీబీటీ బ్యాంక్ ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి సంవత్సరం ₹6,000 నేరుగా మూడు సమాన విడతల్లో (విడతకు ₹2,000) బ్యాంక్ ఖాతాలో జమ అవుతుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం కిసాన్ పోర్టల్](https://pmkisan.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** ప్రధాన మంత్రి ఫసల్ బీమా యోజన (PMFBY Crop Insurance)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆహార, నూనెగింజల పంటలు సాగుచేసే రైతులు. పత్రాలు: పంట విత్తన ధృవీకరణ పత్రం, భూమి పాస్‌బుక్, ఆధార్.
+**అర్హతలు (Requirements):** ఆహార, నూనెగింజల పంటలు సాగుచేసే రైతులు.
+**అవసరమైన పత్రాలు (Document Requirements):** పంట విత్తన ధృవీకరణ పత్రం, భూమి పాస్‌బుక్, ఆధార్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రకృతి వైపరీత్యాలు, కరువు, తెగుళ్ల వల్ల పంట నష్టం జరిగితే పూర్తి బీమా పరిహారం లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎంఎఫ్ బీవై పోర్టల్](https://pmfby.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** కిసాన్ క్రెడిట్ కార్డ్ పథకం (KCC Scheme)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** రైతులు, కౌలు రైతులు మరియు పశుపోషకులు. పత్రాలు: భూమి పత్రాలు, ఆధార్ కార్డు, పాన్ కార్డు.
-**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** పంట పెట్టుబడి కోసం కేవలం 4% రాయితీ వడ్డీ రేటుతో ₹3 లక్షల వరకు సులభ రుణం లభిస్తుంది.
+**అర్హతలు (Requirements):** రైతులు, కౌలు రైతులు మరియు పశుపోషకులు.
+**అవసరమైన పత్రాలు (Document Requirements):** భూమి పత్రాలు, ఆధార్ కార్డు, పాన్ కార్డు.
+**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** పంట పెట్టుబడి కోసం కేవలం 4% రాయితీ वడ్డీ రేటుతో ₹3 లక్షల వరకు సులభ రుణం లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [వ్యవసాయ పోర్టల్](https://agricoop.nic.in)`
       : `Here are verified active Central Government schemes matching your farmer credentials:
 
 1.
 **Scheme Name:** Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)
-**Requirements:** Landholding farmer families with active e-KYC and Aadhaar-seeded bank account. Documents: Land ownership records, Aadhaar Card, Bank Passbook.
+**Requirements:** Landholding farmer families with active e-KYC and Aadhaar-seeded bank account.
+**Document Requirements:** Land ownership records (Pattadar Passbook), Aadhaar Card, Bank Passbook.
 **Why it suits you:** ₹6,000 per year direct income support disbursed in 3 equal four-monthly installments of ₹2,000 each.
 **Deadline:** Open Year Round
 **Official Portal Link:** [PM-KISAN Portal](https://pmkisan.gov.in)
 
 2.
 **Scheme Name:** Pradhan Mantri Fasal Bima Yojana (PMFBY)
-**Requirements:** Farmers growing notified agricultural crops in notified areas. Documents: Land possession record, Sowing certificate, Aadhaar Card.
+**Requirements:** Farmers growing notified agricultural crops in notified areas.
+**Document Requirements:** Land possession record, Sowing certificate, Aadhaar Card.
 **Why it suits you:** Comprehensive crop loss insurance covering natural calamities, pests, and post-harvest losses at nominal 1.5% to 2% premium.
 **Deadline:** Check Official Portal
 **Official Portal Link:** [PMFBY Portal](https://pmfby.gov.in)
 
 3.
 **Scheme Name:** Kisan Credit Card (KCC) Crop Loan Scheme
-**Requirements:** All farmers, individual/joint cultivators, tenant farmers. Documents: Land records, Aadhaar Card, Passport photo.
+**Requirements:** All farmers, individual/joint cultivators, tenant farmers.
+**Document Requirements:** Land records, Aadhaar Card, Passport photo.
 **Why it suits you:** Subsidized short-term crop loans up to ₹3,00,000 at an effective interest rate of just 4% per annum.
 **Deadline:** Open Year Round
 **Official Portal Link:** [Department of Agriculture](https://agricoop.nic.in)`;
@@ -1044,21 +1196,24 @@ How can I assist you today? You can ask me about:
 
 1.
 **పథకం పేరు (Scheme Name):** ఆయుష్మాన్ భారత్ ప్రధాన మంత్రి జన్ ఆరోగ్య యోజన (Ayushman Bharat PM-JAY)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** అర్హత కలిగిన భారతీయ కుటుంబాలు, SECC/రేషన్ కార్డు లబ్ధిదారులు. పత్రాలు: ఆధార్ కార్డు, రేషన్ కార్డు / ఆయుష్మాన్ కార్డు.
+**అర్హతలు (Requirements):** అర్హత కలిగిన భారతీయ కుటుంబాలు, SECC/రేషన్ కార్డు లబ్ధిదారులు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, రేషన్ కార్డు / ఆయుష్మాన్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ద్వితీయ మరియు తృతీయ స్థాయి ఆసుపత్రి చికిత్సల కోసం ప్రతి కుటుంబానికి ఏడాదికి ₹5 లక్షల వరకు 100% ఉచిత నగదు రహిత ఆరోగ్య బీమా రక్షణ కల్పిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం-జే పోర్టల్](https://pmjay.gov.in)
 
 2.
 **పథకం పేరు (Scheme Name):** ప్రధాన మంత్రి ఆవాస్ యోజన - పక్కా గృహ నిర్మాణం (PMAY Urban / Gramin)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** సొంత పక్కా ఇల్లు లేని భారతీయ పౌరులు, EWS/LIG కుటుంబాలు. పత్రాలు: ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, బ్యాంక్ ఖాతా వివరాలు.
+**అర్హతలు (Requirements):** సొంత పక్కా ఇల్లు లేని భారతీయ పౌరులు, EWS/LIG కుటుంబాలు.
+**అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఆదాయ ధృవీకరణ పత్రం, బ్యాంక్ ఖాతా వివరాలు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** పక్కా గృహ నిర్మాణానికి లేదా గృహ రుణ వడ్డీపై ₹2.67 లక్షల వరకు కేంద్ర ప్రభుత్వ సబ్సిడీ లభిస్తుంది.
 **గడువు తేదీ (Deadline):** 31 December 2026
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం ఆవాస్ యోజన పోర్టల్](https://pmaymis.gov.in)
 
 3.
 **పథకం పేరు (Scheme Name):** పీఎం సూర్య ఘర్: ముఫ్త్ బిజిలీ యోజన (PM Surya Ghar: Muft Bijli Yojana)
-**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** సొంత ఇంటి పైకప్పు (రూఫ్‌టాప్) కలిగిన నివాస వినియోగదారులు. పత్రాలు: విద్యుత్ బిల్లు (CA నంబర్), ఆధార్ కార్డు, పైకప్పు ఫోటో.
+**అర్హతలు (Requirements):** సొంత ఇంటి పైకప్పు (రూఫ్‌టాప్) కలిగిన నివాస వినియోగదారులు.
+**అవసరమైన పత్రాలు (Document Requirements):** విద్యుత్ బిల్లు (CA నంబర్), ఆధార్ కార్డు, పైకప్పు ఫోటో.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** గృహ అవసరాలకు 300 యూనిట్ల వరకు ఉచిత విద్యుత్ ఉత్పత్తికి రూఫ్‌టాప్ సోలార్ ప్లాంట్లపై ₹78,000 వరకు నేరుగా సబ్సిడీ లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
 **అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [పీఎం సూర్య ఘర్ పోర్టల్](https://pmsuryaghar.gov.in)`
@@ -1066,32 +1221,120 @@ How can I assist you today? You can ask me about:
 
 1.
 **Scheme Name:** Ayushman Bharat Pradhan Mantri Jan Arogya Yojana (PM-JAY)
-**Requirements:** Resident citizen family meeting target socioeconomic criteria or holding state food security / ration card. Documents: Aadhaar Card, Ration Card / Ayushman Card.
+**Requirements:** Resident citizen family meeting target socioeconomic criteria or holding state food security / ration card.
+**Document Requirements:** Aadhaar Card, Ration Card / Ayushman Card.
 **Why it suits you:** ₹5,00,000 cashless health insurance cover per family per year for secondary and tertiary care hospitalization across all empaneled hospitals nationwide.
 **Deadline:** Open Year Round
 **Official Portal Link:** [National Health Authority](https://pmjay.gov.in)
 
 2.
 **Scheme Name:** Pradhan Mantri Awas Yojana (PMAY Urban / Gramin Housing)
-**Requirements:** Indian citizen family without a pucca house anywhere in India, Annual income within EWS/LIG brackets. Documents: Aadhaar Card, Income Certificate, Bank Account Details.
+**Requirements:** Indian citizen family without a pucca house anywhere in India, Annual income within EWS/LIG brackets.
+**Document Requirements:** Aadhaar Card, Income Certificate, Bank Account Details.
 **Why it suits you:** Provides financial assistance and interest subvention up to ₹2.67 Lakh for building or buying a pucca house.
 **Deadline:** 31 December 2026
 **Official Portal Link:** [PMAY Official Portal](https://pmaymis.gov.in)
 
 3.
 **Scheme Name:** PM Surya Ghar: Muft Bijli Yojana (Rooftop Solar Subsidy)
-**Requirements:** Domestic household owning suitable unshaded rooftop space with active residential DISCOM electricity connection. Documents: Recent Electricity Bill, Aadhaar Card, Bank Account Details.
+**Requirements:** Domestic household owning suitable unshaded rooftop space with active residential DISCOM electricity connection.
+**Document Requirements:** Recent Electricity Bill, Aadhaar Card, Bank Account Details.
 **Why it suits you:** Direct government capital subsidy up to ₹78,000 for installing residential rooftop solar panels yielding up to 300 units of free power monthly.
 **Deadline:** Open Year Round
 **Official Portal Link:** [PM Surya Ghar Portal](https://pmsuryaghar.gov.in)`;
   }
 }
 
+// ============================================================================
+// OFFICIAL GOVERNMENT SCHEME & SCHOLARSHIP AI EVALUATION ENGINE
+// ============================================================================
+
+// AI State Schemes Evaluation Endpoint
+app.post('/api/ai/evaluate-state-schemes', async (req, res) => {
+  try {
+    const { state, userProfile, language } = req.body;
+    const targetState = state || userProfile?.state || 'Andhra Pradesh';
+    const ai = getAIClient();
+
+    const normalizedStatus = (userProfile?.employmentStatus || '').trim().toLowerCase();
+    const isTeluguRequested = language === 'telugu';
+
+    const userGender = (userProfile?.gender || 'male').toLowerCase().trim();
+    const isMale = userGender === 'male';
+    const isFemale = userGender === 'female' || normalizedStatus.includes('women');
+
+    let reply = '';
+    if (ai) {
+      const prompt = `You are Yojana Mitra AI, the official Government Scheme & Scholarship Finder Agent.
+Given the citizen profile below, find and evaluate active State and Central Government welfare schemes and scholarships for ${targetState}.
+
+Rules:
+1. Restrict your factual verification strictly to official government websites (e.g., .gov.in, .gov, or official portals like myScheme or National Scholarship Portal).
+2. Output matches in structured Markdown cards containing: Scheme Name, Target Criteria / Requirements, Why it suits you, Benefits, Documents Required, and Official Application Link.
+3. Do not invent or estimate deadlines. If unavailable, mark "Check Official Portal".
+4. Recommend schemes strictly suitable for the citizen's employment status: "${userProfile?.employmentStatus || 'Student'}".
+
+GENDER ELIGIBILITY DIRECTIVES (CRITICAL):
+- Citizen Gender: ${userProfile?.gender || 'male'}
+${isMale ? `- IMPORTANT: The citizen's gender is MALE. NEVER recommend or include girl-only or female-only scholarships/schemes (such as AICTE Pragati Scholarship for Girl Students, Begum Hazrat Mahal Scholarship for Girls, Maha Shakti Aadabidda Nidhi, Sukanya Samriddhi, Ladli Behna, etc.). Recommend ONLY gender-neutral or male-eligible schemes.` : ''}
+${isFemale ? `- IMPORTANT: The citizen is a WOMAN / FEMALE.
+${userProfile?.employmentStatus === 'Student' || userProfile?.isStudent ? `  - Since the citizen is a FEMALE STUDENT, you MUST ALWAYS evaluate and list "AICTE Pragati Scholarship Scheme for Girl Students in Technical Education (AP)" as a top opportunity alongside Andhra Pradesh Vidya Deevena and Vasathi Deevena!` : `  - You MUST ALWAYS evaluate and list the flagship Andhra Pradesh women empowerment schemes in this exact order FIRST:
+  1. Andhra Pradesh Maha Shakti Scheme (Free RTC Bus Travel for Women)
+  2. Andhra Pradesh Maha Shakti Aadabidda Nidhi Scheme (₹1,500/month DBT)
+  3. Andhra Pradesh Deepam 2.0 Scheme (3 Free LPG Cylinders)
+  4. Andhra Pradesh Cheyutha & Stree Nidhi Livelihood Scheme
+  Followed by Andhra Pradesh Sunna Vaddi (Zero Interest DWCRA Loans), Kalyana Masthu / Shaadi Mubarak, and PMMVY.`}` : ''}
+
+CITIZEN PROFILE:
+- Target State: ${targetState}
+- Gender: ${userProfile?.gender || 'male'}
+- Employment Status: ${userProfile?.employmentStatus || 'Student'}
+- Annual Family Income: ₹${userProfile?.annualFamilyIncome || 'Not specified'}
+- Social Category: ${userProfile?.category || 'General'}
+- Education: ${userProfile?.highestEducation || 'Not specified'} (${userProfile?.currentEducationStatus || ''})
+- Age: ${userProfile?.age || 'Not specified'}
+
+Format each scheme sequentially as:
+1.
+**Scheme Name:** [Official Scheme Name]
+**Requirements:** [Target eligibility criteria]
+**Document Requirements:** [List of required documents to apply, e.g. Aadhaar Card, Income Certificate, Caste Certificate, Bank Passbook, Admission/Fee Receipt, Land Records]
+**Why it suits you:** [Clear reason based on citizen's profile]
+**Benefits:** [Amount or entitlement]
+**Deadline:** [Active deadline date or 'Check Official Portal']
+**Official Portal Link:** [Active official portal link e.g. [AP JnanaBhumi Portal](https://jnanabhumi.ap.gov.in/), [myScheme Portal](https://www.myscheme.gov.in), [National Scholarship Portal](https://scholarships.gov.in), or [PM-KISAN](https://pmkisan.gov.in) - do NOT use dead subdomains like cheyutha.ap.gov.in]
+
+${isTeluguRequested ? 'RESPOND COMPLETELY IN TELUGU (తెలుగు) with distinct **అర్హతలు (Requirements):** and **అవసరమైన పత్రాలు (Document Requirements):** rows.' : 'RESPOND IN CLEAR, POLITE ENGLISH with a dedicated **Document Requirements:** row for every scheme.'}`;
+
+      const aiResponse = await generateContentWithFallback(ai, {
+        primaryModel: 'gemini-3.8-flash',
+        fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
+        contents: prompt
+      });
+
+      if (aiResponse && aiResponse.text) {
+        reply = aiResponse.text;
+      }
+    }
+
+    if (!reply) {
+      reply = buildFallbackReply(`schemes for ${targetState}`, userProfile, isTeluguRequested);
+    }
+
+    res.json({
+      reply: sanitizeSchemeNames(reply || `Verified government schemes evaluated for ${targetState}.`)
+    });
+  } catch (error: any) {
+    console.error('Error evaluating state schemes:', error);
+    res.status(500).json({ error: 'Failed to evaluate schemes' });
+  }
+});
+
 // General AI Scheme & Scholarship Chat Bot Endpoint
 app.post('/api/ai/chat', async (req, res) => {
   try {
     const { message, history, userProfile, language } = req.body;
-    const ai = getGenAI();
+    const ai = getAIClient();
 
     const userMsgLower = (message || '').toLowerCase().trim();
 
@@ -1122,6 +1365,12 @@ app.post('/api/ai/chat', async (req, res) => {
 
     const systemInstruction = `You are the official Government Scheme & Scholarship AI Assistant ("Yojana Mitra AI").
 Your role is to assist Indian citizens in discovering, checking eligibility, understanding required documents, and applying for active government welfare schemes and scholarships.
+Given a user profile (age, income, state, education, category), find relevant active government schemes and scholarships.
+
+Rules:
+- Restrict your factual verification strictly to official government websites (e.g., .gov.in, .gov, or official portals like myScheme or National Scholarship Portal).
+- Output matches in structured text cards containing: Scheme Name, Target Criteria, Benefits, Documents Required, and Official Application Link.
+- Do not invent or estimate deadlines. If unavailable, mark "Check Official Portal".
 
 CITIZEN PROFILE CONTEXT:
 ${userProfile ? `
@@ -1164,18 +1413,22 @@ CORE OPERATING DIRECTIVES:
    - DO NOT ignore the citizen's question to dump an unrelated pre-scripted list of schemes.
 
 2. SCHEME RECOMMENDATION FORMAT (WHEN SCHEMES ARE REQUESTED OR DIRECTLY RELEVANT):
-   - When recommending schemes or when the user asks for schemes matching their profile, provide active schemes in clean text format directly in the chatbox, numbered sequentially:
+   - When recommending schemes or when the user asks for schemes matching their profile, provide active schemes in clean text format directly in the chatbox, numbered sequentially with a dedicated Document Requirements row:
    1.
    **Scheme Name:** [Official Scheme Name]
-   **Requirements:** [Eligibility criteria & Required Documents]
+   **Requirements:** [Eligibility criteria]
+   **Document Requirements:** [List of required documents to apply, e.g. Aadhaar Card, Income Certificate, Caste Certificate, Bank Passbook, Admission/Fee Receipt, Land Records]
    **Why it suits you:** [Clear reason explaining why it suits the citizen's specific age, category, student/occupation status, and income]
+   **Benefits:** [Amount or entitlement]
    **Deadline:** [Active deadline date or 'Check Official Portal']
-   **Official Portal Link:** [Direct clickable official government link e.g. [National Scholarship Portal](https://scholarships.gov.in) or https://scholarships.gov.in]
+   **Official Portal Link:** [Direct clickable official government link e.g. [AP JnanaBhumi Portal](https://jnanabhumi.ap.gov.in/) or [myScheme Portal](https://www.myscheme.gov.in). Do NOT use dead subdomains like cheyutha.ap.gov.in or navasakam.ap.gov.in]
 
    2.
    **Scheme Name:** ...
    **Requirements:** ...
+   **Document Requirements:** ...
    **Why it suits you:** ...
+   **Benefits:** ...
    **Deadline:** ...
    **Official Portal Link:** ...
 
@@ -1184,12 +1437,20 @@ CORE OPERATING DIRECTIVES:
 3. STRICT STATE RESTRICTION (ONLY ANDHRA PRADESH & TELANGANA):
    - You EXCLUSIVELY support and concentrate on the states of **Andhra Pradesh** and **Telangana** (in addition to Pan-India Central Government schemes).
    - If a user asks about any other state (such as Karnataka, Maharashtra, etc.), politely explain that this portal is dedicated to Andhra Pradesh, Telangana, and Central Government schemes.
+   - CRITICAL SCHEME NAMING MANDATE: NEVER use the obsolete name "YSR Rythu Bharosa". Always refer to, display, and name the farmer investment support scheme strictly as **Andhra Pradesh Annadata Sukhibhava** (or **Andhra Pradesh Annadata Sukhibhava - PM KISAN Scheme**).
    - Concentrate on active schemes in Andhra Pradesh (Annadata Sukhibhava farmer grant ₹20,000/yr, Dr. NTR Vaidya Seva ₹25 Lakh cashless healthcare, NTR Bharosa Social Security Pension ₹4,000/mo, Thalliki Vandanam ₹15,000/child education incentive, Deepam 2.0 Free 3 LPG Gas Cylinders, Maha Shakti Free RTC Bus Travel for Women, Yuva Galam Unemployment Allowance ₹3,000/mo, JnanaBhumi Vidya Deevena & Vasathi Deevena Fee Reimbursement, and Sunna Vaddi for DWCRA women) and Telangana (Telangana ePASS Post-Matric Scholarships & Fee Reimbursement, Maha Lakshmi Free Bus Travel and ₹500 Gas Cylinder, Overseas Vidya Nidhi, TASK Youth Training Subsidy, Rythu Bharosa, Kalyana Lakshmi / Shaadi Mubarak, Rajiv Aarogyasri, Gruha Jyothi).
 
-4. STRICT PROFILE RELEVANCE:
-   - When suggesting schemes, ensure they strictly match the citizen's profile.
+4. STRICT PROFILE & GENDER RELEVANCE:
+   - When suggesting schemes, ensure they strictly match the citizen's profile AND GENDER.
+   - GENDER VALIDATION: If the citizen is MALE, NEVER suggest or discuss female/girl-only scholarships (e.g. AICTE Pragati Scholarship for Girls, Begum Hazrat Mahal, Sukanya Samriddhi, Maha Shakti Aadabidda Nidhi, etc.).
+   - FOR WOMEN / FEMALE CITIZENS: Prioritize and evaluate the flagship Andhra Pradesh women schemes in this exact order:
+     1. Andhra Pradesh Maha Shakti Scheme (Free RTC Bus Travel for Women)
+     2. Andhra Pradesh Maha Shakti Aadabidda Nidhi Scheme (₹1,500/month DBT)
+     3. Andhra Pradesh Deepam 2.0 Scheme (3 Free LPG Cylinders)
+     4. Andhra Pradesh Cheyutha & Stree Nidhi Livelihood Scheme
+     followed by Sunna Vaddi DWCRA, Kalyana Masthu / Shaadi Mubarak, and PMMVY.
    - If NOT a student: Do NOT recommend student scholarships or college fee reimbursements; recommend employment, healthcare, housing, electricity, agricultural (if farmer), or welfare schemes.
-   - If a student: Prioritize scholarships, fee reimbursement, and educational assistance.
+   - If a student: Prioritize scholarships, fee reimbursement, and educational assistance matching their gender.
    - If 'Women': Recommend women-specific empowerment programs (not senior pensions).
    - If 'Senior Citizen': Recommend senior citizen pensions and geriatric healthcare.
 
@@ -1215,8 +1476,8 @@ CORE OPERATING DIRECTIVES:
     });
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: 'gemini-3.1-flash-lite',
-      fallbackModels: ['gemini-3.8-flash', 'gemini-flash-latest'],
+      primaryModel: 'gemini-3.8-flash',
+      fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
       contents,
       config: {
         systemInstruction,
@@ -1226,12 +1487,12 @@ CORE OPERATING DIRECTIVES:
 
     if (response?.text) {
       return res.json({
-        reply: response.text
+        reply: sanitizeSchemeNames(response.text)
       });
     }
 
     return res.json({
-      reply: buildFallbackReply(message, userProfile, isTeluguRequested)
+      reply: sanitizeSchemeNames(buildFallbackReply(message, userProfile, isTeluguRequested))
     });
   } catch (error: any) {
     const { message, userProfile, language } = req.body || {};
@@ -1255,7 +1516,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/ai/scan-schemes', async (req, res) => {
   try {
     const { userProfile, candidateSchemes } = req.body;
-    const ai = getGenAI();
+    const ai = getAIClient();
 
     if (!ai || !Array.isArray(candidateSchemes) || candidateSchemes.length === 0) {
       return res.json({
@@ -1300,8 +1561,8 @@ Return a valid JSON object in this exact format:
 }`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: 'gemini-3.1-flash-lite',
-      fallbackModels: ['gemini-3.8-flash', 'gemini-flash-latest'],
+      primaryModel: 'gemini-3.8-flash',
+      fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
@@ -1343,7 +1604,7 @@ Return a valid JSON object in this exact format:
 app.post('/api/ai/ask-scheme', async (req, res) => {
   try {
     const { schemeName, schemeDetails, userQuery, userProfile } = req.body;
-    const ai = getGenAI();
+    const ai = getAIClient();
 
     if (!ai) {
       return res.json({
@@ -1372,8 +1633,8 @@ STRICT GUIDELINES:
 4. Keep the tone respectful, clear, and reassuring.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: 'gemini-3.1-flash-lite',
-      fallbackModels: ['gemini-3.8-flash', 'gemini-flash-latest'],
+      primaryModel: 'gemini-3.8-flash',
+      fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
       contents: prompt,
       config: {
         systemInstruction: 'You are the official Yojana Mitra Assistant for Indian Government Schemes and Scholarships. Always ground advice in verified government portals (.gov.in).'
@@ -1396,7 +1657,7 @@ STRICT GUIDELINES:
 app.post('/api/ai/search-schemes', async (req, res) => {
   try {
     const { query, state, category, userProfile } = req.body;
-    const ai = getGenAI();
+    const ai = getAIClient();
 
     if (!ai) {
       return res.json({
@@ -1418,15 +1679,15 @@ Provide:
 Do not invent deadlines or unofficial URLs.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: 'gemini-3.1-flash-lite',
-      fallbackModels: ['gemini-3.8-flash', 'gemini-flash-latest'],
+      primaryModel: 'gemini-3.8-flash',
+      fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }]
       }
     });
 
-    const groundingChunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    const groundingChunks = (response as any)?.candidates?.[0]?.groundingMetadata?.groundingChunks;
     const urls: { title: string; uri: string }[] = [];
     if (groundingChunks && Array.isArray(groundingChunks)) {
       groundingChunks.forEach((chunk: any) => {
@@ -1455,7 +1716,7 @@ Do not invent deadlines or unofficial URLs.`;
 app.post('/api/ai/check-documents', async (req, res) => {
   try {
     const { schemeName, requiredDocs, userHeldDocs } = req.body;
-    const ai = getGenAI();
+    const ai = getAIClient();
 
     if (!ai) {
       return res.json({
@@ -1471,8 +1732,8 @@ User's Available Documents: ${JSON.stringify(userHeldDocs)}
 Analyze which documents are ready and provide simple step-by-step instructions on how the citizen can acquire any missing official documents (such as Caste Certificate, Income Certificate from Tehsildar/Revenue Department, Bonafide from college, or Aadhaar-bank seeding).`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: 'gemini-3.1-flash-lite',
-      fallbackModels: ['gemini-3.8-flash', 'gemini-flash-latest'],
+      primaryModel: 'gemini-3.8-flash',
+      fallbackModels: ['gemini-3.1-flash-lite', 'gemini-flash-latest'],
       contents: prompt
     });
 
@@ -1488,30 +1749,35 @@ Analyze which documents are ready and provide simple step-by-step instructions o
 
 // Setup Vite or Static File Serving
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Yojana Mitra Server running at http://0.0.0.0:${PORT}`);
     });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+
+    server.on('error', (err: any) => {
+      console.error('Server failed to bind to port:', err);
     });
+  } catch (error) {
+    console.error('Error starting server:', error);
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Yojana Mitra Server running at http://0.0.0.0:${PORT}`);
-  });
 }
 
-// Only launch HTTP listener if running outside Vercel Serverless environment
-if (!process.env.VERCEL) {
-  startServer();
-}
+startServer();
 
 export default app;
 export { app };

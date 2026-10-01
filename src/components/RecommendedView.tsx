@@ -11,11 +11,13 @@ import {
   ShieldCheck, 
   Link2,
   ArrowRight,
-  Filter
+  Filter,
+  RotateCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SchemeCard } from './SchemeCard';
 import { Scheme, SchemeRecommendation, UserProfile } from '../types';
+import { ensureAbsoluteUrl } from '../utils/urlUtils';
 
 interface RecommendedViewProps {
   onSelectScheme: (scheme: Scheme) => void;
@@ -25,6 +27,8 @@ interface FormattedSchemeText {
   number: number;
   schemeName: string;
   requirements: string;
+  documentRequirements: string;
+  documentsList: string[];
   whyItSuitsYou: string;
   deadline: string;
   officialPortalLink: string;
@@ -38,6 +42,14 @@ export const RecommendedView: React.FC<RecommendedViewProps> = ({ onSelectScheme
   const [viewMode, setViewMode] = useState<'text' | 'cards'>('text');
   const [copiedAll, setCopiedAll] = useState<boolean>(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+  };
 
   // Effective profile fallback for guest
   const effectiveProfile: UserProfile = useMemo(() => {
@@ -94,11 +106,13 @@ export const RecommendedView: React.FC<RecommendedViewProps> = ({ onSelectScheme
       const eligibilityList = scheme.eligibility && scheme.eligibility.length > 0
         ? scheme.eligibility.join('; ')
         : 'Citizens satisfying age, domicile, category, and income limits';
+      
       const documentsList = scheme.requiredDocuments && scheme.requiredDocuments.length > 0
-        ? scheme.requiredDocuments.join(', ')
-        : 'Aadhaar Card, Active Bank Account, Income & Category Certificates';
+        ? scheme.requiredDocuments
+        : ['Aadhaar Card', 'Active Bank Passbook', 'Income Certificate', 'Category Certificate'];
 
-      const requirements = `Eligibility: ${eligibilityList}. Required Documents: ${documentsList}.`;
+      const documentRequirements = documentsList.join(', ');
+      const requirements = eligibilityList;
 
       // Why it suits you
       const matchedDetails = matchReasons && matchReasons.length > 0
@@ -110,11 +124,12 @@ export const RecommendedView: React.FC<RecommendedViewProps> = ({ onSelectScheme
         : `Matches your verified profile details as a ${activeProfile.age}-year-old resident of ${activeProfile.state}, belonging to ${activeProfile.category} category, with annual family income under the ceiling.`;
 
       const deadline = scheme.deadline || 'Check Official Portal';
-      const officialPortalLink = scheme.officialWebsite;
+      const officialPortalLink = ensureAbsoluteUrl(scheme.officialWebsite);
 
       const rawText = `${num}.
 Scheme Name: ${schemeName}
 Requirements: ${requirements}
+Document Requirements: ${documentRequirements}
 Why it suits you: ${whyItSuitsYou}
 Deadline: ${deadline}
 Official Portal Link: ${officialPortalLink}`;
@@ -123,6 +138,8 @@ Official Portal Link: ${officialPortalLink}`;
         number: num,
         schemeName,
         requirements,
+        documentRequirements,
+        documentsList,
         whyItSuitsYou,
         deadline,
         officialPortalLink,
@@ -236,12 +253,22 @@ Official Portal Link: ${officialPortalLink}`;
                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
           >
-            🌾 Agri, Business & Housing
+            Agri, Business & Housing
           </button>
         </div>
 
-        {/* View Toggle & Copy All */}
+        {/* View Toggle, Refresh & Copy All */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            title="Refresh recommendations"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-700' : 'text-emerald-800'}`} />
+            <span>Refresh Results</span>
+          </button>
+
           <button
             onClick={handleCopyAll}
             disabled={formattedSchemes.length === 0}
@@ -327,7 +354,7 @@ Official Portal Link: ${officialPortalLink}`;
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-700">
                           {item.rec.scheme.category}
                         </span>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-300">
                           Government of {item.rec.scheme.state}
                         </span>
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -368,7 +395,7 @@ Official Portal Link: ${officialPortalLink}`;
 
                 {/* Structured Text Fields */}
                 <div className="space-y-3.5 text-xs sm:text-sm">
-                  {/* Requirements */}
+                  {/* Requirements (Eligibility Criteria) */}
                   <div className="space-y-1 bg-stone-50/70 p-3.5 rounded-xl border border-stone-200/80">
                     <span className="font-bold text-stone-900 block text-xs uppercase tracking-wider">
                       Requirements:
@@ -376,6 +403,30 @@ Official Portal Link: ${officialPortalLink}`;
                     <p className="text-stone-700 leading-relaxed">
                       {item.requirements}
                     </p>
+                  </div>
+
+                  {/* Document Requirements (Dedicated Row) */}
+                  <div className="space-y-2 bg-stone-50/90 p-3.5 rounded-xl border border-stone-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-stone-900 block text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-emerald-800" />
+                        <span>Document Requirements:</span>
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        {item.documentsList.length} Required Documents
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {item.documentsList.map((doc, dIdx) => (
+                        <span 
+                          key={dIdx} 
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-stone-200 rounded-lg text-xs text-stone-800 font-medium shadow-2xs"
+                        >
+                          <span className="text-emerald-700 font-bold">✓</span>
+                          <span>{doc}</span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Why it suits you */}
@@ -389,11 +440,11 @@ Official Portal Link: ${officialPortalLink}`;
                   </div>
 
                   {/* Deadline */}
-                  <div className="flex flex-wrap items-center gap-2 bg-amber-50/60 px-3.5 py-2.5 rounded-xl border border-amber-200/80">
-                    <span className="font-bold text-amber-950 text-xs uppercase tracking-wider">
+                  <div className="flex flex-wrap items-center gap-2 bg-emerald-50/70 px-3.5 py-2.5 rounded-xl border border-emerald-200/80">
+                    <span className="font-bold text-emerald-950 text-xs uppercase tracking-wider">
                       Deadline:
                     </span>
-                    <span className="font-bold text-amber-900 text-xs sm:text-sm">
+                    <span className="font-bold text-emerald-900 text-xs sm:text-sm">
                       {item.deadline}
                     </span>
                   </div>

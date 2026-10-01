@@ -20,13 +20,13 @@ const MainContent: React.FC = () => {
   const { currentUser, isOnboarding, activeTab, openAuthModal } = useApp();
   const [selectedScheme, setSelectedScheme] = useState<Scheme | null>(null);
 
-  // Do not route to home page unless user has gone through the registration process or is already registered
+  // Do not route to home page unless user has an authenticated citizen account
   if (!currentUser || currentUser.isRegistered === false) {
     return <AuthView />;
   }
 
-  // If newly registered citizen requires onboarding customization
-  if (currentUser && isOnboarding) {
+  // If citizen has not filled in their registration details yet, strictly route to onboarding registration form
+  if (currentUser.profileCompleted !== true || currentUser.detailsFilled !== true || isOnboarding) {
     return <OnboardingView />;
   }
 
@@ -53,8 +53,8 @@ const MainContent: React.FC = () => {
         if (!currentUser) {
           return (
             <div className="p-8 text-center bg-white rounded-2xl border border-stone-200 shadow-xs max-w-md mx-auto space-y-4 my-12">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center mx-auto text-xl font-bold">
-                🏛️
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center mx-auto text-sm font-bold">
+                ✓
               </div>
               <h3 className="text-base font-bold text-stone-900">Sign in to track your applications</h3>
               <p className="text-xs text-stone-500">
@@ -74,8 +74,8 @@ const MainContent: React.FC = () => {
         if (!currentUser) {
           return (
             <div className="p-8 text-center bg-white rounded-2xl border border-stone-200 shadow-xs max-w-md mx-auto space-y-4 my-12">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center mx-auto text-xl font-bold">
-                👤
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center mx-auto text-sm font-bold">
+                ID
               </div>
               <h3 className="text-base font-bold text-stone-900">Sign in to manage your profile</h3>
               <p className="text-xs text-stone-500">
@@ -97,7 +97,7 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-sans antialiased selection:bg-orange-500/20 selection:text-orange-950">
+    <div className="min-h-screen bg-emerald-50/20 text-stone-900 flex flex-col font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-950">
       
       {/* Top Navigation */}
       <Navbar />

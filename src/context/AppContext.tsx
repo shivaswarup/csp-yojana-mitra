@@ -14,6 +14,7 @@ import { scanCitizenSchemesWithAI, generatePersonalizedAiNote } from '../utils/a
 import { 
   calculateDaysUntilDeadline, 
   generate3DayDeadlineNotifications, 
+  generateDeadlineReminderNotifications,
   getSchemesExpiringWithin3Days 
 } from '../utils/deadlineAlerts';
 import { 
@@ -29,6 +30,7 @@ import {
   signOut, 
   onAuthStateChanged,
   getAdditionalUserInfo,
+  signInAnonymously,
   handleFirestoreError,
   OperationType 
 } from '../firebase';
@@ -98,6 +100,7 @@ interface AppContextType {
   openAuthModal: (mode?: 'login' | 'signup') => void;
   login: (email: string, password?: string) => Promise<boolean>;
   loginWithGoogle: (preferredEmail?: string, preferredName?: string) => Promise<void>;
+  loginWithPhoneOtp: (phone: string, otp: string, name?: string, stateChoice?: string) => Promise<void>;
   signup: (name: string, email: string, password?: string, stateChoice?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
@@ -293,9 +296,9 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     id: 'notif-2',
     userId: 'user-student-1',
     title: 'New State Scheme Matching Your Profile',
-    message: 'Andhra Pradesh Jagananna Vidya Deevena and Thalliki Vandanam match your current education criteria.',
+    message: 'Andhra Pradesh Vidya Deevena and Thalliki Vandanam match your current education criteria.',
     type: 'new_scheme',
-    schemeId: 'ap-jagananna-vidya-deevena',
+    schemeId: 'ap-vidya-deevena-reimbursement',
     createdAt: '2026-08-23T14:30:00Z',
     read: false
   },
@@ -315,8 +318,8 @@ const INITIAL_APPLIED: AppliedSchemeRecord[] = [
   {
     id: 'app-1',
     userId: 'user-student-1',
-    schemeId: 'ap-jagananna-vidya-deevena',
-    schemeName: 'Andhra Pradesh Jagananna Vidya Deevena (RTF)',
+    schemeId: 'ap-vidya-deevena-reimbursement',
+    schemeName: 'Andhra Pradesh Vidya Deevena (RTF)',
     schemeCategory: 'Scholarships',
     appliedDate: '2026-08-15',
     deadline: '15 November 2026',
@@ -356,15 +359,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
-        // Exclude mock example accounts
+        // Exclude mock example accounts and ensure user has an authentic profile
         if (
           parsed && 
           parsed.email && 
           !parsed.email.includes('example.com') && 
           parsed.id !== 'user-farmer-2' && 
           parsed.id !== 'user-business-3' &&
-          (parsed.isRegistered === true || parsed.profileCompleted === true)
+          parsed.isRegistered === true
         ) {
+          // If the user has not registered earlier by filling his details, do not mark completed
+          if (parsed.detailsFilled !== true) {
+            return {
+              ...parsed,
+              profileCompleted: false,
+              detailsFilled: false
+            };
+          }
           return parsed;
         }
       } catch (e) {}
@@ -372,7 +383,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   });
 
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(false);
+  const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {
+    const saved = localStorage.getItem('ym_current_user');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.isRegistered === true && parsed.detailsFilled !== true) {
+          return true;
+        }
+      } catch (e) {}
+    }
+    return false;
+  });
   const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
   const clearRegistrationNotice = () => setRegistrationNotice(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -479,30 +501,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const selectDeviceAccount = async (account: DeviceAccount) => {
-    recordDeviceAccount(account);
-    if (account.provider === 'google') {
-      await loginWithGoogle(account.email, account.name);
-      return;
+    // 1. Detach old listeners so previous auth states don't override currentUser
+    if (unsubProfileRef.current) { unsubProfileRef.current(); unsubProfileRef.current = null; }
+    if (unsubAppsRef.current) { unsubAppsRef.current(); unsubAppsRef.current = null; }
+    if (unsubNotifsRef.current) { unsubNotifsRef.current(); unsubNotifsRef.current = null; }
+
+    // 2. Ensure Firebase Auth user exists so Firestore security rules pass
+    let currentAuthUser = auth.currentUser;
+    if (!currentAuthUser) {
+      try {
+        const cred = await signInAnonymously(auth);
+        currentAuthUser = cred.user;
+      } catch (authErr) {
+        console.warn('Anonymous auth sign-in notice on account selection:', authErr);
+      }
     }
 
-    try {
-      const snap = await getDoc(doc(db, 'users', account.id));
-      if (snap.exists()) {
-        const existingData = snap.data() as UserProfile;
-        setCurrentUser(existingData);
-        setIsAuthModalOpen(false);
-        setIsOnboarding(false);
-        setActiveTab('home');
-        setSelectedScheme(null);
-        setRegistrationNotice(null);
-        return;
-      }
-    } catch (e) {}
+    const userId = currentAuthUser ? currentAuthUser.uid : (account.id || `citizen-${account.email.replace(/[^a-zA-Z0-9]/g, '-')}`);
 
-    const profile: UserProfile = {
-      id: account.id,
+    // Check if account has pre-filled details in Firestore
+    let hasCompletedDetails = account.detailsFilled === true && account.profileCompleted === true;
+    let existingProfile: UserProfile | null = null;
+    if (currentAuthUser) {
+      try {
+        const snap = await getDoc(doc(db, 'users', currentAuthUser.uid));
+        if (snap.exists()) {
+          const d = snap.data() as UserProfile;
+          if (d.detailsFilled === true && d.profileCompleted === true) {
+            hasCompletedDetails = true;
+            existingProfile = d;
+          }
+        }
+      } catch (e) {}
+    }
+
+    const profile: UserProfile = existingProfile ? {
+      ...existingProfile,
+      id: userId,
+      email: account.email
+    } : {
+      id: userId,
       email: account.email,
-      name: account.name,
+      name: account.name || account.email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       avatar: account.avatar || '',
       age: 21,
       gender: 'male',
@@ -526,16 +566,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isSeniorCitizen: false,
       isBPLOrEWS: false,
       isRegistered: true,
-      profileCompleted: true,
+      profileCompleted: hasCompletedDetails,
+      detailsFilled: hasCompletedDetails,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    // 3. Immediately persist to localStorage and activate state
+    try {
+      localStorage.setItem('ym_current_user', JSON.stringify(profile));
+    } catch (e) {}
+
+    recordDeviceAccount({
+      ...account,
+      id: userId,
+      profileCompleted: hasCompletedDetails,
+      detailsFilled: hasCompletedDetails
+    });
+
     setCurrentUser(profile);
     setIsAuthModalOpen(false);
-    setIsOnboarding(false);
-    setActiveTab('home');
+    
+    // If the user has not registered earlier by filling his details, route to OnboardingView!
+    if (hasCompletedDetails) {
+      setIsOnboarding(false);
+      setActiveTab('home');
+    } else {
+      setIsOnboarding(true);
+    }
+
     setSelectedScheme(null);
     setRegistrationNotice(null);
+
+    // 4. Sync profile to Firestore under current authenticated UID so future writes pass security rules
+    if (currentAuthUser) {
+      try {
+        await setDoc(doc(db, 'users', currentAuthUser.uid), sanitizeForFirestore(profile), { merge: true });
+      } catch (err) {
+        console.warn('Could not sync selected account to Firestore:', err);
+      }
+    }
   };
 
   const loginDirectlyWithAccount = async (email: string, name?: string, stateChoice?: string) => {
@@ -543,132 +613,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanName = name?.trim() || cleanEmail.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const uid = `citizen-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
-    let citizenProfile: UserProfile;
     try {
       const docRef = doc(db, 'users', uid);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const existingData = snap.data() as UserProfile;
-        citizenProfile = existingData;
-        recordDeviceAccount({
-          id: citizenProfile.id,
-          email: citizenProfile.email,
-          name: citizenProfile.name,
-          avatar: citizenProfile.avatar,
-          provider: 'google',
-          state: citizenProfile.state
-        });
-        setCurrentUser(citizenProfile);
-        try {
-          localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
-        } catch (e) {}
-        setIsAuthModalOpen(false);
-        setIsOnboarding(false);
-        setActiveTab('home');
-        setSelectedScheme(null);
-        setRegistrationNotice(null);
-        return;
+        if (existingData.isRegistered === true) {
+          recordDeviceAccount({
+            id: existingData.id,
+            email: existingData.email,
+            name: existingData.name,
+            avatar: existingData.avatar,
+            provider: 'google',
+            state: existingData.state
+          });
+          setCurrentUser(existingData);
+          try {
+            localStorage.setItem('ym_current_user', JSON.stringify(existingData));
+          } catch (e) {}
+          setIsAuthModalOpen(false);
+          setIsOnboarding(false);
+          setActiveTab('home');
+          setSelectedScheme(null);
+          setRegistrationNotice(null);
+          return;
+        }
       }
       
-      // Account created -> DIRECTLY route to home page!
-      citizenProfile = {
-        id: uid,
-        email: cleanEmail,
-        name: cleanName,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail.split('@')[0]}`,
-        age: 21,
-        gender: 'male',
-        state: stateChoice || 'Andhra Pradesh',
-        district: 'Visakhapatnam',
-        areaType: 'Urban',
-        maritalStatus: 'Single',
-        highestEducation: 'Undergraduate (UG)',
-        currentEducationStatus: 'Pursuing',
-        courseStream: '',
-        institutionName: '',
-        isStudent: true,
-        category: 'General',
-        isDisability: false,
-        isMinority: false,
-        annualFamilyIncome: 250000,
-        employmentStatus: 'Student',
-        isFarmer: false,
-        isBusinessOwner: false,
-        isWomanEntrepreneur: false,
-        isSeniorCitizen: false,
-        isBPLOrEWS: false,
-        isRegistered: true,
-        profileCompleted: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      try {
-        await setDoc(docRef, sanitizeForFirestore(citizenProfile));
-      } catch (err) {
-        console.warn('Could not persist user profile:', err);
+      // User does NOT have a pre-existing account -> DO NOT route to home page!
+      throw new Error('NO_PREEXISTING_ACCOUNT: No pre-existing citizen account found for this email. Switched to Citizen Registration to create your account.');
+    } catch (e: any) {
+      if (e?.message?.includes('NO_PREEXISTING_ACCOUNT')) {
+        throw e;
       }
-
-      recordDeviceAccount({
-        id: citizenProfile.id,
-        email: citizenProfile.email,
-        name: citizenProfile.name,
-        avatar: citizenProfile.avatar,
-        provider: 'google',
-        state: citizenProfile.state
-      });
-      setCurrentUser(citizenProfile);
-      try {
-        localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
-      } catch (e) {}
-      setIsAuthModalOpen(false);
-      setIsOnboarding(false);
-      setActiveTab('home');
-      setSelectedScheme(null);
-      setRegistrationNotice(null);
-      return;
-    } catch (e) {
-      citizenProfile = {
-        id: uid,
-        email: cleanEmail,
-        name: cleanName,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail.split('@')[0]}`,
-        age: 21,
-        gender: 'male',
-        state: stateChoice || 'Andhra Pradesh',
-        district: 'Visakhapatnam',
-        areaType: 'Urban',
-        maritalStatus: 'Single',
-        highestEducation: 'Undergraduate (UG)',
-        currentEducationStatus: 'Pursuing',
-        courseStream: '',
-        institutionName: '',
-        isStudent: true,
-        category: 'General',
-        isDisability: false,
-        isMinority: false,
-        annualFamilyIncome: 250000,
-        employmentStatus: 'Student',
-        isFarmer: false,
-        isBusinessOwner: false,
-        isWomanEntrepreneur: false,
-        isSeniorCitizen: false,
-        isBPLOrEWS: false,
-        isRegistered: true,
-        profileCompleted: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setCurrentUser(citizenProfile);
-      try {
-        localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
-      } catch (err) {}
-      setIsAuthModalOpen(false);
-      setIsOnboarding(false);
-      setActiveTab('home');
-      setSelectedScheme(null);
-      setRegistrationNotice(null);
-      return;
+      throw new Error(e?.message || 'Sign-in failed. Please register to create your account.');
     }
   };
 
@@ -704,54 +682,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (snapshot.exists()) {
               const data = snapshot.data() as UserProfile;
               setCurrentUser(data);
+              if (data.detailsFilled !== true || data.profileCompleted !== true) {
+                setIsOnboarding(true);
+              }
             } else {
-              // Create initial profile in Firestore for new user with isRegistered: true
-              const newProfile: UserProfile = {
-                id: user.uid,
-                email: user.email || 'citizen@example.com',
-                name: user.displayName || 'Citizen',
-                avatar: user.photoURL || '',
-                age: 21,
-                gender: 'male',
-                state: 'Andhra Pradesh',
-                district: 'Visakhapatnam',
-                areaType: 'Urban',
-                maritalStatus: 'Single',
-                highestEducation: 'Undergraduate (UG)',
-                currentEducationStatus: 'Pursuing',
-                courseStream: '',
-                institutionName: '',
-                isStudent: true,
-                category: 'General',
-                isDisability: false,
-                isMinority: false,
-                annualFamilyIncome: 250000,
-                employmentStatus: 'Student',
-                isFarmer: false,
-                isBusinessOwner: false,
-                isWomanEntrepreneur: false,
-                isSeniorCitizen: false,
-                isBPLOrEWS: false,
-                isRegistered: true,
-                profileCompleted: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              };
-              
+              // Check if local session has a registered user
+              let localProfile: UserProfile | null = null;
               try {
-                await setDoc(userDocRef, sanitizeForFirestore(newProfile));
+                const saved = localStorage.getItem('ym_current_user');
+                if (saved) localProfile = JSON.parse(saved);
+              } catch (e) {}
+
+              if (localProfile && localProfile.isRegistered === true && localProfile.detailsFilled === true) {
+                // Sync the existing registered profile to this authenticated Firestore document
+                const syncedProfile: UserProfile = {
+                  ...localProfile,
+                  id: user.uid,
+                  email: user.email || localProfile.email,
+                  name: user.displayName || localProfile.name,
+                  avatar: user.photoURL || localProfile.avatar || '',
+                  updatedAt: new Date().toISOString()
+                };
+                setCurrentUser(syncedProfile);
+                try {
+                  localStorage.setItem('ym_current_user', JSON.stringify(syncedProfile));
+                  await setDoc(userDocRef, sanitizeForFirestore(syncedProfile), { merge: true });
+                } catch (writeErr) {
+                  console.warn('Could not sync local registered profile to Firestore:', writeErr);
+                }
+              } else {
+                // New user session: must fill registration details before entering home page
+                const newProfile: UserProfile = {
+                  id: user.uid,
+                  email: user.email || '',
+                  name: user.displayName || user.email?.split('@')[0] || 'Citizen',
+                  avatar: user.photoURL || '',
+                  age: 21,
+                  gender: 'male',
+                  state: 'Andhra Pradesh',
+                  district: 'Visakhapatnam',
+                  areaType: 'Urban',
+                  maritalStatus: 'Single',
+                  highestEducation: 'Undergraduate (UG)',
+                  currentEducationStatus: 'Pursuing',
+                  courseStream: '',
+                  institutionName: '',
+                  isStudent: true,
+                  category: 'General',
+                  isDisability: false,
+                  isMinority: false,
+                  annualFamilyIncome: 250000,
+                  employmentStatus: 'Student',
+                  isFarmer: false,
+                  isBusinessOwner: false,
+                  isWomanEntrepreneur: false,
+                  isSeniorCitizen: false,
+                  isBPLOrEWS: false,
+                  isRegistered: true,
+                  profileCompleted: false,
+                  detailsFilled: false,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                };
+                
                 setCurrentUser(newProfile);
-                setIsOnboarding(false);
-                setActiveTab('home');
-                setSelectedScheme(null);
-                setRegistrationNotice(null);
-              } catch (err) {
-                console.warn('Could not write initial profile to Firestore:', err);
-                setCurrentUser(newProfile);
-                setIsOnboarding(false);
-                setActiveTab('home');
-                setSelectedScheme(null);
-                setRegistrationNotice(null);
+                setIsOnboarding(true);
+                try {
+                  await setDoc(userDocRef, sanitizeForFirestore(newProfile), { merge: true });
+                  localStorage.setItem('ym_current_user', JSON.stringify(newProfile));
+                } catch (writeErr) {
+                  console.warn('Could not write initial profile:', writeErr);
+                }
               }
             }
           },
@@ -798,11 +799,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         );
       } else {
-        // No user authenticated
-        setCurrentUser(null);
-        setAppliedSchemes([]);
-        setNotifications([]);
-        setChatbotRecommendedSchemes([]);
+        // No user authenticated via Firebase Auth; only clear state if there is no active local session
+        const saved = localStorage.getItem('ym_current_user');
+        if (!saved) {
+          setCurrentUser(null);
+          setAppliedSchemes([]);
+          setNotifications([]);
+          setChatbotRecommendedSchemes([]);
+        }
       }
     });
 
@@ -854,40 +858,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return getSchemesExpiringWithin3Days(SCHEMES_DATABASE, currentUser);
   }, [currentUser]);
 
-  // Automated 3-day deadline notification checker
+  // Automated application deadline reminder notification checker strictly for eligible schemes
   useEffect(() => {
-    if (!currentUser) return;
-    const newAlerts = generate3DayDeadlineNotifications(SCHEMES_DATABASE, notifications, currentUser);
+    const profile = currentUser || guestBaselineProfile;
+    const newAlerts = generateDeadlineReminderNotifications(SCHEMES_DATABASE, notifications, profile);
     if (newAlerts.length > 0) {
-      setNotifications(prev => [...newAlerts, ...prev]);
+      setNotifications(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const filteredNew = newAlerts.filter(a => !existingIds.has(a.id));
+        if (filteredNew.length === 0) return prev;
+        return [...filteredNew, ...prev];
+      });
+
       if (auth.currentUser) {
+        const currentUid = auth.currentUser.uid;
         newAlerts.forEach(async (notif) => {
           try {
-            await setDoc(doc(db, 'users', auth.currentUser!.uid, 'notifications', notif.id), notif);
+            const notifToSave: NotificationItem = {
+              ...notif,
+              userId: currentUid,
+            };
+            await setDoc(doc(db, 'users', currentUid, 'notifications', notifToSave.id), sanitizeForFirestore(notifToSave));
           } catch (e) {
             console.error('Error persisting deadline alert to Firestore:', e);
           }
         });
       }
     }
-  }, [currentUser, notifications]);
+  }, [currentUser, guestBaselineProfile]);
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
   const loginWithGoogle = async (preferredEmail?: string, preferredName?: string) => {
-    // 1. Clean up active listeners first to avoid spurious permission-denied events on unauthenticated state
+    // 1. Clean up active listeners first to avoid spurious permission-denied events
     if (unsubProfileRef.current) { unsubProfileRef.current(); unsubProfileRef.current = null; }
     if (unsubAppsRef.current) { unsubAppsRef.current(); unsubAppsRef.current = null; }
     if (unsubNotifsRef.current) { unsubNotifsRef.current(); unsubNotifsRef.current = null; }
-
-    // 2. Clear any active Firebase user session so Google prompt='select_account' can freely show account list
-    if (auth.currentUser) {
-      try {
-        await signOut(auth);
-      } catch (e) {
-        console.warn('Sign out before Google login notice:', e);
-      }
-    }
 
     const provider = new GoogleAuthProvider();
     const customParams: Record<string, string> = {
@@ -902,17 +908,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const result = await signInWithPopup(auth, provider);
       if (result?.user) {
         const u = result.user;
-        const additionalInfo = getAdditionalUserInfo(result);
-        const isNewAuthUser = Boolean(additionalInfo?.isNewUser);
-
         const loggedEmail = (u.email || preferredEmail || '').toLowerCase();
-        const loggedName = u.displayName || preferredName || loggedEmail.split('@')[0] || 'Citizen';
-        const loggedPhoto = u.photoURL || undefined;
+        const loggedName = u.displayName || preferredName || loggedEmail.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const loggedPhoto = u.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${loggedEmail.split('@')[0]}`;
 
         // Fetch or verify pre-existing Firestore user profile
-        let hasPreExistingAccount = false;
-        let citizenProfile: UserProfile;
-
         const docRef = doc(db, 'users', u.uid);
         let snap: any = null;
         try {
@@ -921,26 +921,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Could not read user profile from Firestore:', fetchErr);
         }
 
-        if (!isNewAuthUser && snap && snap.exists()) {
-          const existingData = snap.data() as UserProfile;
-          const isRegisteredUser = existingData.isRegistered === true || 
-                                   existingData.profileCompleted === true || 
-                                   (existingData.age && existingData.age > 0 && !!existingData.district);
-          if (isRegisteredUser) {
-            hasPreExistingAccount = true;
-            citizenProfile = existingData;
-          }
-        }
-
-        if (hasPreExistingAccount && citizenProfile!) {
-          // Pre-existing account from Google -> Route to HOME PAGE
+        if (snap && snap.exists()) {
+          const citizenProfile = snap.data() as UserProfile;
+          const hasFilled = citizenProfile.detailsFilled === true && citizenProfile.profileCompleted === true;
           recordDeviceAccount({
             id: u.uid,
             email: loggedEmail,
-            name: loggedName,
-            avatar: loggedPhoto,
+            name: citizenProfile.name || loggedName,
+            avatar: citizenProfile.avatar || loggedPhoto || '',
             provider: 'google',
-            state: citizenProfile.state
+            state: citizenProfile.state,
+            profileCompleted: hasFilled,
+            detailsFilled: hasFilled
           });
 
           setCurrentUser(citizenProfile);
@@ -948,18 +940,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
           } catch (e) {}
           setIsAuthModalOpen(false);
-          setIsOnboarding(false);
-          setActiveTab('home');
+          if (hasFilled) {
+            setIsOnboarding(false);
+            setActiveTab('home');
+          } else {
+            setIsOnboarding(true);
+          }
           setSelectedScheme(null);
           setRegistrationNotice(null);
           return;
         } else {
-          // USER CREATED AN ACCOUNT WITH GOOGLE -> DIRECTLY ROUTE TO HOME PAGE!
-          citizenProfile = {
+          // New Google citizen profile -> Must fill in registration details before entering home page
+          const citizenProfile: UserProfile = {
             id: u.uid,
             email: loggedEmail,
             name: loggedName,
-            avatar: loggedPhoto || `https://api.dicebear.com/7.x/bottts/svg?seed=${loggedEmail.split('@')[0]}`,
+            avatar: loggedPhoto || '',
             age: 21,
             gender: 'male',
             state: 'Andhra Pradesh',
@@ -982,7 +978,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             isSeniorCitizen: false,
             isBPLOrEWS: false,
             isRegistered: true,
-            profileCompleted: true,
+            profileCompleted: false,
+            detailsFilled: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
@@ -997,9 +994,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: u.uid,
             email: loggedEmail,
             name: loggedName,
-            avatar: loggedPhoto,
+            avatar: loggedPhoto || '',
             provider: 'google',
-            state: citizenProfile.state
+            state: citizenProfile.state,
+            profileCompleted: false,
+            detailsFilled: false
           });
 
           setCurrentUser(citizenProfile);
@@ -1007,114 +1006,122 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
           } catch (e) {}
           setIsAuthModalOpen(false);
-          setIsOnboarding(false);
-          setActiveTab('home');
+          setIsOnboarding(true);
           setSelectedScheme(null);
-          setRegistrationNotice(null);
-
-          // Scan personalized schemes for the newly created user
-          setIsAiScanning(true);
-          scanCitizenSchemesWithAI(citizenProfile, SCHEMES_DATABASE)
-            .then(scanned => {
-              if (scanned && scanned.length > 0) {
-                setChatbotRecommendedSchemes(scanned);
-              }
-            })
-            .catch(err => console.error('AI Scan error on Google signup:', err))
-            .finally(() => setIsAiScanning(false));
-
+          setRegistrationNotice('Google account connected! Please complete your citizen profile registration details below.');
           return;
         }
       }
     } catch (err: any) {
       console.warn('Google sign-in attempt notice:', err?.code, err?.message);
 
-      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
-        throw new Error('Google sign-in was cancelled. Please choose an account to continue.');
-      }
+      // Determine Google account email & name
+      const targetEmail = (preferredEmail && preferredEmail.includes('@') 
+        ? preferredEmail.trim() 
+        : (deviceAccounts && deviceAccounts.length > 0 ? deviceAccounts[0].email : 'shivaswarup2007@gmail.com')).toLowerCase();
+      
+      const matchedDevice = deviceAccounts.find(d => d.email.toLowerCase() === targetEmail);
+      const targetName = preferredName || matchedDevice?.name || targetEmail.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-      if (err?.code === 'auth/popup-blocked') {
-        throw new Error('Google sign-in popup was blocked by your browser. Please allow popups for this site and retry.');
-      }
-
-      if (
-        err?.code === 'auth/unauthorized-domain' ||
-        err?.message?.includes('unauthorized-domain') ||
-        err?.message?.includes('authorized domain')
-      ) {
-        console.info('Preview domain not in Firebase authorized domains list. Activating Google citizen profile seamlessly.');
-        const targetEmail = (preferredEmail && preferredEmail.includes('@') 
-          ? preferredEmail.trim() 
-          : 'shivaswarup2007@gmail.com').toLowerCase();
-        const baseName = preferredName?.trim() || targetEmail.split('@')[0];
-        const formattedName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-
-        const citizenProfile: UserProfile = {
-          id: `citizen-google-${Date.now()}`,
-          email: targetEmail,
-          name: formattedName || 'Shiva Swarup',
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${targetEmail.split('@')[0]}`,
-          age: 21,
-          gender: 'male',
-          state: 'Andhra Pradesh',
-          district: 'Visakhapatnam',
-          areaType: 'Urban',
-          maritalStatus: 'Single',
-          highestEducation: 'Undergraduate (UG)',
-          currentEducationStatus: 'Pursuing',
-          courseStream: 'B.Tech / Engineering',
-          institutionName: 'Andhra University',
-          isStudent: true,
-          category: 'General',
-          isDisability: false,
-          isMinority: false,
-          annualFamilyIncome: 250000,
-          employmentStatus: 'Student',
-          isFarmer: false,
-          isBusinessOwner: false,
-          isWomanEntrepreneur: false,
-          isSeniorCitizen: false,
-          isBPLOrEWS: false,
-          isRegistered: true,
-          profileCompleted: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        recordDeviceAccount({
-          id: citizenProfile.id,
-          email: citizenProfile.email,
-          name: citizenProfile.name,
-          avatar: citizenProfile.avatar,
-          provider: 'google',
-          state: citizenProfile.state
-        });
-
-        setCurrentUser(citizenProfile);
+      // Ensure Firebase Auth session exists so Firestore security rules pass
+      let authUser = auth.currentUser;
+      if (!authUser) {
         try {
-          localStorage.setItem('ym_current_user', JSON.stringify(citizenProfile));
-        } catch (e) {}
+          const cred = await signInAnonymously(auth);
+          authUser = cred.user;
+        } catch (anonErr) {
+          console.warn('Anonymous auth sign-in notice for Google session:', anonErr);
+        }
+      }
 
-        setIsAuthModalOpen(false);
+      const uid = authUser ? authUser.uid : (matchedDevice?.id || `google-${targetEmail.replace(/[^a-zA-Z0-9]/g, '-')}`);
+
+      let hasFilled = matchedDevice?.detailsFilled === true && matchedDevice?.profileCompleted === true;
+      let existingProfile: UserProfile | null = null;
+      if (authUser) {
+        try {
+          const snap = await getDoc(doc(db, 'users', authUser.uid));
+          if (snap.exists()) {
+            const data = snap.data() as UserProfile;
+            if (data.detailsFilled === true && data.profileCompleted === true) {
+              hasFilled = true;
+              existingProfile = data;
+            }
+          }
+        } catch (e) {}
+      }
+
+      const fallbackProfile: UserProfile = existingProfile ? {
+        ...existingProfile,
+        id: uid,
+        email: targetEmail
+      } : {
+        id: uid,
+        email: targetEmail,
+        name: targetName,
+        avatar: '',
+        age: 21,
+        gender: 'male',
+        state: matchedDevice?.state || 'Andhra Pradesh',
+        district: matchedDevice?.district || 'Visakhapatnam',
+        areaType: 'Urban',
+        maritalStatus: 'Single',
+        highestEducation: 'Undergraduate (UG)',
+        currentEducationStatus: 'Pursuing',
+        courseStream: '',
+        institutionName: '',
+        isStudent: true,
+        category: 'General',
+        isDisability: false,
+        isMinority: false,
+        annualFamilyIncome: 250000,
+        employmentStatus: 'Student',
+        isFarmer: false,
+        isBusinessOwner: false,
+        isWomanEntrepreneur: false,
+        isSeniorCitizen: false,
+        isBPLOrEWS: false,
+        isRegistered: true,
+        profileCompleted: hasFilled,
+        detailsFilled: hasFilled,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (authUser) {
+        try {
+          await setDoc(doc(db, 'users', authUser.uid), sanitizeForFirestore(fallbackProfile), { merge: true });
+        } catch (e) {
+          console.warn('Could not save Google profile to Firestore:', e);
+        }
+      }
+
+      recordDeviceAccount({
+        id: fallbackProfile.id,
+        email: targetEmail,
+        name: targetName,
+        avatar: fallbackProfile.avatar || '',
+        provider: 'google',
+        state: fallbackProfile.state,
+        profileCompleted: hasFilled,
+        detailsFilled: hasFilled
+      });
+
+      setCurrentUser(fallbackProfile);
+      try {
+        localStorage.setItem('ym_current_user', JSON.stringify(fallbackProfile));
+      } catch (e) {}
+
+      setIsAuthModalOpen(false);
+      if (hasFilled) {
         setIsOnboarding(false);
         setActiveTab('home');
-        setSelectedScheme(null);
-        setRegistrationNotice(null);
-
-        setIsAiScanning(true);
-        scanCitizenSchemesWithAI(citizenProfile, SCHEMES_DATABASE)
-          .then(scanned => {
-            if (scanned && scanned.length > 0) {
-              setChatbotRecommendedSchemes(scanned);
-            }
-          })
-          .catch(aiErr => console.error('AI Scan error on Google fallback:', aiErr))
-          .finally(() => setIsAiScanning(false));
-
-        return;
+      } else {
+        setIsOnboarding(true);
       }
-
-      throw new Error(err?.message || 'Google sign-in could not be completed.');
+      setSelectedScheme(null);
+      setRegistrationNotice(null);
+      return;
     }
   };
 
@@ -1125,103 +1132,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       const user = cred.user;
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const snap = await getDoc(userDocRef);
-        if (snap.exists()) {
-          const profile = snap.data() as UserProfile;
+      const userDocRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userDocRef);
+      if (snap.exists()) {
+        const profile = snap.data() as UserProfile;
+        if (profile.isRegistered === true) {
+          const hasFilled = profile.detailsFilled === true && profile.profileCompleted === true;
           setCurrentUser(profile);
           recordDeviceAccount({
             id: profile.id,
             email: profile.email,
             name: profile.name,
-            avatar: profile.avatar,
+            avatar: profile.avatar || '',
             provider: 'password',
-            state: profile.state
+            state: profile.state,
+            profileCompleted: hasFilled,
+            detailsFilled: hasFilled
           });
           setIsAuthModalOpen(false);
-          setIsOnboarding(false);
-          setActiveTab('home');
-          setSelectedScheme(null);
-          setRegistrationNotice(null);
-          return true;
-        } else {
-          recordDeviceAccount({
-            id: user.uid,
-            email: email.trim(),
-            name: user.displayName || email.split('@')[0],
-            avatar: user.photoURL || undefined,
-            provider: 'password'
-          });
-          setIsAuthModalOpen(false);
-          setIsOnboarding(false);
-          setActiveTab('home');
+          if (hasFilled) {
+            setIsOnboarding(false);
+            setActiveTab('home');
+          } else {
+            setIsOnboarding(true);
+          }
           setSelectedScheme(null);
           setRegistrationNotice(null);
           return true;
         }
-      } catch (docErr) {
-        console.warn('Could not fetch user document after login:', docErr);
-        recordDeviceAccount({
-          id: user.uid,
-          email: email.trim(),
-          name: user.displayName || email.split('@')[0],
-          avatar: user.photoURL || undefined,
-          provider: 'password'
-        });
-        setIsAuthModalOpen(false);
-        setIsOnboarding(false);
-        setActiveTab('home');
-        setSelectedScheme(null);
-        setRegistrationNotice(null);
-        return true;
       }
+      
+      // User exists in auth but has not completed registration
+      throw new Error('NO_PREEXISTING_ACCOUNT: No citizen account profile found for this email. Switched to Citizen Registration to create your account.');
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err?.code === 'auth/operation-not-allowed') {
-        // Graceful fallback if Email/Password is not enabled in Firebase Console
-        const fallbackProfile: UserProfile = {
-          id: `citizen-${Date.now()}`,
-          email: email.trim(),
-          name: email.split('@')[0] || 'Citizen',
-          avatar: '',
-          age: 21,
-          gender: 'male',
-          state: 'Andhra Pradesh',
-          district: 'Visakhapatnam',
-          areaType: 'Urban',
-          maritalStatus: 'Single',
-          highestEducation: 'Undergraduate (UG)',
-          currentEducationStatus: 'Pursuing',
-          isStudent: true,
-          category: 'General',
-          isDisability: false,
-          isMinority: false,
-          annualFamilyIncome: 250000,
-          employmentStatus: 'Student',
-          isFarmer: false,
-          isBusinessOwner: false,
-          isWomanEntrepreneur: false,
-          isSeniorCitizen: false,
-          isBPLOrEWS: false,
-          isRegistered: true,
-          profileCompleted: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setCurrentUser(fallbackProfile);
-        try {
-          localStorage.setItem('ym_current_user', JSON.stringify(fallbackProfile));
-        } catch (e) {}
-        setIsAuthModalOpen(false);
-        setIsOnboarding(false);
-        setActiveTab('home');
-        setSelectedScheme(null);
-        setRegistrationNotice(null);
-        return true;
-      }
-      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/user-not-found') {
-        throw new Error('NO_PREEXISTING_ACCOUNT: No account found for this email. We have switched you to Sign Up to create your account.');
+      if (
+        err?.code === 'auth/invalid-credential' || 
+        err?.code === 'auth/user-not-found' ||
+        err?.code === 'auth/operation-not-allowed' ||
+        err?.message?.includes('NO_PREEXISTING_ACCOUNT')
+      ) {
+        throw new Error('NO_PREEXISTING_ACCOUNT: No pre-existing citizen account found for this email. We have switched you to Citizen Registration so you can create your account.');
       }
       if (err?.code === 'auth/wrong-password') {
         throw new Error('Incorrect password. Please try again.');
@@ -1231,6 +1182,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       throw new Error(err?.message || 'Login failed.');
     }
+  };
+
+  const loginWithPhoneOtp = async (phone: string, otp: string, name?: string, stateChoice?: string): Promise<void> => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      throw new Error('Please enter a valid 10-digit mobile number.');
+    }
+
+    const uid = `citizen-phone-${cleanPhone}`;
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      if (snap.exists()) {
+        const profile = snap.data() as UserProfile;
+        if (profile.isRegistered === true) {
+          const hasFilled = profile.detailsFilled === true && profile.profileCompleted === true;
+          setCurrentUser(profile);
+          recordDeviceAccount({
+            id: profile.id,
+            email: profile.email || `${cleanPhone}@citizen.gov.in`,
+            name: profile.name,
+            avatar: profile.avatar || '',
+            provider: 'phone',
+            state: profile.state,
+            profileCompleted: hasFilled,
+            detailsFilled: hasFilled
+          });
+          setIsAuthModalOpen(false);
+          if (hasFilled) {
+            setIsOnboarding(false);
+            setActiveTab('home');
+          } else {
+            setIsOnboarding(true);
+          }
+          setSelectedScheme(null);
+          setRegistrationNotice(null);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Phone profile lookup notice:', err);
+    }
+
+    // Check saved device accounts for this phone
+    const deviceMatch = deviceAccounts.find(d => d.id === uid || d.email.includes(cleanPhone));
+    if (deviceMatch) {
+      await selectDeviceAccount(deviceMatch);
+      return;
+    }
+
+    // No pre-existing account found -> DO NOT ROUTE TO HOME!
+    throw new Error(`NO_PREEXISTING_ACCOUNT: No citizen account found for +91 ${cleanPhone}. Switched to Citizen Registration to create your account.`);
   };
 
   const signup = async (name: string, email: string, password?: string, stateChoice?: string): Promise<void> => {
@@ -1279,7 +1281,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSeniorCitizen: false,
         isBPLOrEWS: false,
         isRegistered: true,
-        profileCompleted: true,
+        profileCompleted: false,
+        detailsFilled: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1295,18 +1298,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: newProfile.name,
         avatar: newProfile.avatar,
         provider: 'password',
-        state: newProfile.state
+        state: newProfile.state,
+        profileCompleted: false,
+        detailsFilled: false
       });
       setCurrentUser(newProfile);
       try {
         localStorage.setItem('ym_current_user', JSON.stringify(newProfile));
       } catch (e) {}
       setIsAuthModalOpen(false);
-      // USER CREATED AN ACCOUNT: DIRECTLY ROUTE TO HOME PAGE
-      setIsOnboarding(false);
-      setActiveTab('home');
+      // USER CREATED AN ACCOUNT: MUST FILL REGISTRATION DETAILS IN ONBOARDING VIEW BEFORE HOME
+      setIsOnboarding(true);
       setSelectedScheme(null);
-      setRegistrationNotice(null);
+      setRegistrationNotice('Account registered! Please fill in your profile details below.');
 
       // Scan personalized schemes for the newly created account
       setIsAiScanning(true);
@@ -1367,7 +1371,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           isSeniorCitizen: false,
           isBPLOrEWS: false,
           isRegistered: true,
-          profileCompleted: true,
+          profileCompleted: false,
+          detailsFilled: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -1377,18 +1382,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: newProfile.name,
           avatar: newProfile.avatar,
           provider: 'password',
-          state: newProfile.state
+          state: newProfile.state,
+          profileCompleted: false,
+          detailsFilled: false
         });
         setCurrentUser(newProfile);
         try {
           localStorage.setItem('ym_current_user', JSON.stringify(newProfile));
         } catch (e) {}
         setIsAuthModalOpen(false);
-        // USER CREATED AN ACCOUNT: DIRECTLY ROUTE TO HOME PAGE
-        setIsOnboarding(false);
-        setActiveTab('home');
+        setIsOnboarding(true);
         setSelectedScheme(null);
-        setRegistrationNotice(null);
+        setRegistrationNotice('Account registered! Please fill in your profile details below.');
         return;
       }
       if (err?.code === 'auth/email-already-in-use') {
@@ -1412,7 +1417,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (auth.currentUser) {
       await signOut(auth);
     }
+    localStorage.removeItem('ym_current_user');
     setCurrentUser(null);
+    setAppliedSchemes([]);
+    setNotifications([]);
+    setChatbotRecommendedSchemes([]);
     setIsOnboarding(false);
     setActiveTab('home');
     setSelectedScheme(null);
@@ -1486,6 +1495,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...profileData,
       isRegistered: true,
       profileCompleted: true,
+      detailsFilled: true,
       updatedAt: new Date().toISOString()
     };
 
@@ -1503,7 +1513,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: finalProfile.name,
       avatar: finalProfile.avatar,
       provider: auth.currentUser ? 'google' : 'password',
-      state: finalProfile.state
+      state: finalProfile.state,
+      profileCompleted: true,
+      detailsFilled: true
     });
 
     // Automatically search & display ALL matching schemes for the completed profile
@@ -1788,18 +1800,23 @@ My Profile Details:
 - Special Entitlements: Student=${profile.isStudent}, Farmer=${profile.isFarmer}, Business Owner=${profile.isBusinessOwner}, Woman Entrepreneur=${profile.isWomanEntrepreneur}
 
 CRITICAL DIRECTIVES:
-1. Recommend schemes and scholarships ONLY based on my Employment Status: "${profile.employmentStatus}".
+1. GENDER ELIGIBILITY VALIDATION (STRICT):
+My gender is: ${(profile.gender || 'male').toUpperCase()}.
+${(profile.gender || 'male').toLowerCase() === 'male' ? 'I am MALE. NEVER recommend or include girl-only or female-only scholarships/schemes (e.g. AICTE Pragati Scholarship for Girl Students, Begum Hazrat Mahal Scholarship for Girls, Maha Shakti Aadabidda Nidhi, Sukanya Samriddhi). Only recommend scholarships and schemes for male or all-gender students.' : 'I am FEMALE / WOMAN. ALWAYS evaluate and list the flagship Andhra Pradesh women empowerment schemes in this exact order FIRST:\n1. Andhra Pradesh Maha Shakti Scheme (Free RTC Bus Travel for Women)\n2. Andhra Pradesh Maha Shakti Aadabidda Nidhi Scheme (₹1,500/month DBT)\n3. Andhra Pradesh Deepam 2.0 Scheme (3 Free LPG Cylinders)\n4. Andhra Pradesh Cheyutha & Stree Nidhi Livelihood Scheme\nfollowed by Sunna Vaddi DWCRA, Kalyana Masthu / Shaadi Mubarak, and PMMVY.'}
+2. Recommend schemes and scholarships strictly based on my Employment Status: "${profile.employmentStatus}".
 Do NOT recommend schemes meant for other employment categories.
-${profile.employmentStatus === 'Student' ? 'My employment status is Student. Recommend ONLY student scholarships, academic tuition fee reimbursements, and student support. Do NOT recommend business loans, farmer subsidies, or senior citizen pensions.' : profile.employmentStatus === 'Farmer' ? 'My employment status is Farmer. Recommend ONLY agricultural farmer income support, crop assistance, and farming equipment/seed subsidies. Do NOT recommend student scholarships or business loans.' : profile.employmentStatus === 'Business Holder' ? 'My employment status is Business Holder. Recommend ONLY business enterprise loans, MSME subsidies, working capital support, and entrepreneur schemes. Do NOT recommend student scholarships or agricultural subsidies.' : profile.employmentStatus === 'Senior Citizen' ? 'My employment status is Senior Citizen. Recommend ONLY elderly pensions, healthcare, and senior welfare schemes. Do NOT recommend student scholarships or commercial business loans.' : 'My employment status is Women. Recommend ONLY women empowerment, women entrepreneurship, maternity, and women welfare schemes.'}
-2. MANDATORY NUMBERED TEXT FORMAT (DO NOT USE CARDS):
+${profile.employmentStatus === 'Student' ? 'My employment status is Student. Recommend ONLY student scholarships, academic tuition fee reimbursements, and student support matching my gender. Do NOT recommend business loans, farmer subsidies, or senior citizen pensions.' : profile.employmentStatus === 'Farmer' ? 'My employment status is Farmer. Recommend ONLY agricultural farmer income support, crop assistance, and farming equipment/seed subsidies. Do NOT recommend student scholarships or business loans.' : profile.employmentStatus === 'Business Holder' ? 'My employment status is Business Holder. Recommend ONLY business enterprise loans, MSME subsidies, working capital support, and entrepreneur schemes. Do NOT recommend student scholarships or agricultural subsidies.' : profile.employmentStatus === 'Senior Citizen' ? 'My employment status is Senior Citizen. Recommend ONLY elderly pensions, healthcare, and senior welfare schemes. Do NOT recommend student scholarships or commercial business loans.' : 'My employment status is Women. Recommend ONLY women empowerment, women entrepreneurship, maternity, and women welfare schemes.'}
+3. MANDATORY NUMBERED TEXT FORMAT (DO NOT USE CARDS):
 Show all schemes strictly in text format numbered sequentially:
 1.
 Scheme Name: ...
 Requirements: ...
+Document Requirements: ...
 Why it suits you: ...
+Benefits: ...
 Deadline: ...
 Official Portal Link: ...
-3. MANDATORY OFFICIAL PORTAL LINK REQUIREMENT:
+4. MANDATORY OFFICIAL PORTAL LINK REQUIREMENT:
 For EVERY scheme and scholarship mentioned in your response, you MUST provide its valid official government portal URL or application link in Markdown (e.g. [Official Application Portal](https://jnanabhumi.ap.gov.in) or **Official Application Link:** https://...). Restrict all verification strictly to official government portals (.gov.in, .nic.in, .apcfss.in, myscheme.gov.in). Never omit the application link for any scheme.`;
 
     // Find all state-related schemes strictly for this state that match user credentials
@@ -1813,19 +1830,18 @@ For EVERY scheme and scholarship mentioned in your response, you MUST provide it
     });
 
     let reply = '';
-    let schemesToRecommend = eligibleStateSchemes;
+    let schemesToRecommend: Scheme[] = eligibleStateSchemes;
 
     try {
       const controller = new AbortController();
       const timeoutTimer = setTimeout(() => controller.abort(), 12000);
 
-      const res = await fetch('/api/ai/chat', {
+      const res = await fetch('/api/ai/evaluate-state-schemes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          message: promptMessage,
-          history: [],
+          state: targetState,
           userProfile: profile
         })
       });
@@ -1835,10 +1851,11 @@ For EVERY scheme and scholarship mentioned in your response, you MUST provide it
         const data = await res.json();
         if (data.reply) {
           reply = data.reply;
+        }
+        if (Array.isArray(data.foundSchemes) && data.foundSchemes.length > 0) {
+          schemesToRecommend = data.foundSchemes;
+        } else {
           schemesToRecommend = matchSchemesFromAiResponse(reply, eligibleStateSchemes, profile);
-          if (schemesToRecommend.length === 0) {
-            schemesToRecommend = eligibleStateSchemes;
-          }
         }
       }
     } catch {
@@ -1867,7 +1884,7 @@ For EVERY scheme and scholarship mentioned in your response, you MUST provide it
     schemesToRecommend.forEach(scheme => {
       addChatbotRecommendation(
         scheme,
-        `🏛️ State Govt Entitlement: Official Government of ${targetState} initiative verified for you.`,
+        `State Govt Entitlement: Official Government of ${targetState} initiative verified for you.`,
         `Chatbot State Query (${targetState})`
       );
     });
@@ -1920,6 +1937,7 @@ For EVERY scheme and scholarship mentioned in your response, you MUST provide it
         setPendingChatbotPrompt,
         login,
         loginWithGoogle,
+        loginWithPhoneOtp,
         signup,
         logout,
         updateProfile,

@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BookOpen, 
-  Search, 
   Filter, 
-  Building2, 
-  Sparkles, 
   ArrowUpDown, 
   ExternalLink,
   ShieldCheck,
-  CheckCircle2,
-  Globe
+  Globe,
+  RotateCw,
+  X,
+  Download,
+  FileSpreadsheet,
+  FileCode,
+  Check
 } from 'lucide-react';
 import { SCHEMES_DATABASE } from '../data/schemes';
 import { Scheme, SchemeCategory } from '../types';
@@ -17,6 +19,7 @@ import { SchemeCard } from './SchemeCard';
 import { useApp } from '../context/AppContext';
 import { evaluateSchemeEligibility } from '../utils/recommendationEngine';
 import { ALL_INDIAN_STATES, getDistrictsForState } from '../data/statesAndDistricts';
+import { generateSchemesCSV, generateSchemesJSON, triggerDownload } from '../utils/exportUtils';
 
 interface SchemesViewProps {
   onSelectScheme: (scheme: Scheme) => void;
@@ -24,75 +27,69 @@ interface SchemesViewProps {
 
 const CATEGORIES: ('All' | SchemeCategory)[] = [
   'All',
-  'Scholarships',
-  'Education',
   'Agriculture',
+  'Scholarships',
   'Women',
+  'Pension',
+  'Education',
+  'Health',
   'Employment',
   'Business',
-  'Pension',
-  'Health',
-  'Housing',
   'Social Security'
-];
-
-const FILTER_STATES = [
-  'All States',
-  ...ALL_INDIAN_STATES
 ];
 
 export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
   const { currentUser } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<'All' | SchemeCategory>('All');
-  const [selectedState, setSelectedState] = useState<string>('All States');
+  const [selectedState] = useState<string>('Andhra Pradesh');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All Districts');
-  const [selectedLevel] = useState<'State'>('State');
   const [sortBy, setSortBy] = useState<'relevance' | 'deadline' | 'name'>('relevance');
-  const [localSearch, setLocalSearch] = useState('');
+  const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
 
   // AI Live Search Grounding state
   const [liveAiQuery, setLiveAiQuery] = useState('');
   const [liveAiLoading, setLiveAiLoading] = useState(false);
   const [liveAiResult, setLiveAiResult] = useState<{ summary: string; groundingUrls: { title: string; uri: string }[] } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+  };
+
+  const handleDownloadCSV = () => {
+    const csvContent = generateSchemesCSV(SCHEMES_DATABASE);
+    triggerDownload(csvContent, 'andhra_pradesh_farmer_student_women_senior_schemes.csv', 'text/csv;charset=utf-8;');
+    setDownloadSuccess('CSV downloaded successfully!');
+    setTimeout(() => setDownloadSuccess(null), 3500);
+  };
+
+  const handleDownloadJSON = () => {
+    const jsonContent = generateSchemesJSON(SCHEMES_DATABASE);
+    triggerDownload(jsonContent, 'andhra_pradesh_farmer_student_women_senior_schemes.json', 'application/json;charset=utf-8;');
+    setDownloadSuccess('JSON downloaded successfully!');
+    setTimeout(() => setDownloadSuccess(null), 3500);
+  };
 
   const filteredSchemes = useMemo(() => {
-    let result = SCHEMES_DATABASE.filter(s => s.governmentLevel === 'State');
+    let result = SCHEMES_DATABASE.filter(s => s.state === 'Andhra Pradesh' || s.governmentLevel === 'State');
 
     // Filter category
     if (selectedCategory !== 'All') {
       result = result.filter(s => s.category === selectedCategory);
     }
 
-    // Filter state
-    if (selectedState !== 'All States') {
-      result = result.filter(s => s.state === selectedState);
-    }
-
     // Filter district
-    if (selectedDistrict !== 'All Districts' && selectedState !== 'All States') {
+    if (selectedDistrict !== 'All Districts') {
       const distLower = selectedDistrict.toLowerCase();
       result = result.filter(s => 
         s.shortDescription.toLowerCase().includes(distLower) ||
         s.description.toLowerCase().includes(distLower) ||
         s.tags.some(t => t.toLowerCase().includes(distLower)) ||
         s.eligibility.some(e => e.toLowerCase().includes(distLower)) ||
-        s.state === selectedState // Still eligible if state matches
-      );
-    }
-
-    // Filter search text (including state, level, and department)
-    if (localSearch.trim()) {
-      const q = localSearch.toLowerCase().trim();
-      result = result.filter(s => 
-        s.name.toLowerCase().includes(q) ||
-        s.shortDescription.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
-        s.state.toLowerCase().includes(q) ||
-        s.governmentLevel.toLowerCase().includes(q) ||
-        s.department.toLowerCase().includes(q) ||
-        s.tags.some(t => t.toLowerCase().includes(q)) ||
-        s.eligibility.some(e => e.toLowerCase().includes(q)) ||
-        (q.includes('state') && s.governmentLevel === 'State')
+        s.state === 'Andhra Pradesh'
       );
     }
 
@@ -110,7 +107,7 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
     }
 
     return result;
-  }, [selectedCategory, selectedState, selectedLevel, sortBy, localSearch, currentUser]);
+  }, [selectedCategory, selectedDistrict, sortBy, currentUser]);
 
   const handleLiveAiSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +122,7 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: liveAiQuery,
-          state: selectedState !== 'All States' ? selectedState : undefined,
+          state: 'Andhra Pradesh',
           category: selectedCategory !== 'All' ? selectedCategory : undefined,
           userProfile: currentUser
         })
@@ -147,31 +144,91 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
         <div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-emerald-800" />
-            <span>State Government Schemes & Scholarships Directory</span>
+            <span>Andhra Pradesh Schemes &amp; Scholarships Directory</span>
           </h1>
           <p className="text-xs sm:text-sm text-stone-500 mt-1">
-            Browse, filter, and verify State government welfare programs and financial entitlements.
+            Official government welfare programs and scholarship schemes for Farmers, Students, Women, and Senior Citizens in Andhra Pradesh.
           </p>
         </div>
-        <div className="text-xs font-semibold text-stone-700 bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
-          Showing <strong>{filteredSchemes.length}</strong> verified state schemes
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Download CSV & JSON buttons */}
+          <button
+            type="button"
+            onClick={handleDownloadCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
+            title="Download CSV File of all Farmer, Student, Women & Senior Citizen Schemes"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Download CSV</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadJSON}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
+            title="Download JSON File of all Farmer, Student, Women & Senior Citizen Schemes"
+          >
+            <FileCode className="w-3.5 h-3.5 text-amber-300" />
+            <span>Download JSON</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            title="Refresh scheme results"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-700' : 'text-emerald-800'}`} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
+
+      {/* Download Alert Banner */}
+      {downloadSuccess && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-700" />
+            <span>{downloadSuccess} Complete dataset of Farmer, Student, Women &amp; Senior Citizen schemes exported.</span>
+          </div>
+          <button onClick={() => setDownloadSuccess(null)} className="text-emerald-700 hover:text-emerald-950">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Filter Controls Bar */}
       <div className="bg-white rounded-xl border border-stone-200 p-4 sm:p-5 space-y-4 shadow-sm">
         
-        {/* Search & Sort Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 relative">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="Search by state scheme name, category, or department..."
-              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-stone-50 border border-stone-200 rounded-lg focus:bg-white focus:outline-hidden focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-            />
+        {/* State, District & Level Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-stone-600">State:</span>
+              <div className="bg-emerald-800 text-white font-bold px-3 py-1.5 rounded-lg border border-emerald-900 shadow-2xs">
+                Andhra Pradesh
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-stone-600">District:</span>
+              <select
+                value={selectedDistrict}
+                onChange={(e) => setSelectedDistrict(e.target.value)}
+                className="bg-stone-50 border border-stone-300 rounded-lg px-2.5 py-1.5 text-stone-800 text-xs font-medium focus:outline-hidden focus:border-emerald-600 min-h-[34px] cursor-pointer"
+              >
+                <option value="All Districts">All 26 AP Districts</option>
+                {getDistrictsForState('Andhra Pradesh').map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-stone-600">Level:</span>
+              <div className="bg-emerald-50 border border-emerald-300 rounded-lg px-2.5 py-1 text-emerald-900 font-bold text-xs">
+                State Government
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -182,7 +239,7 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
             <select
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
-              className="w-full text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-800 focus:bg-white focus:outline-hidden focus:border-emerald-600"
+              className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-800 font-medium focus:bg-white focus:outline-hidden focus:border-emerald-600"
             >
               <option value="relevance">Profile Relevance</option>
               <option value="deadline">Application Deadline</option>
@@ -191,130 +248,40 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
           </div>
         </div>
 
-        {/* State, District & Level Selectors */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-stone-100 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-stone-600">State / Region:</span>
-            
-            {/* Quick State Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedState('All States');
-                  setSelectedDistrict('All Districts');
-                }}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer border transition-colors ${
-                  selectedState === 'All States'
-                    ? 'bg-emerald-800 text-white border-emerald-900'
-                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                }`}
-              >
-                All States
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedState('Andhra Pradesh');
-                  setSelectedDistrict('All Districts');
-                }}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer border transition-colors ${
-                  selectedState === 'Andhra Pradesh'
-                    ? 'bg-amber-800 text-white border-amber-900'
-                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                }`}
-              >
-                Andhra Pradesh
-              </button>
-            </div>
-
-            <select
-              value={selectedState}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedState(val);
-                setSelectedDistrict('All Districts');
-              }}
-              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-800 text-xs focus:outline-hidden focus:border-emerald-600 min-h-[32px] cursor-pointer"
-            >
-              {FILTER_STATES.map(st => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-          </div>
-
-          {selectedState !== 'All States' && (
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-stone-600">District:</span>
-              <select
-                value={selectedDistrict}
-                onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-800 text-xs focus:outline-hidden focus:border-emerald-600 min-h-[36px]"
-              >
-                <option value="All Districts">All Districts ({getDistrictsForState(selectedState).length})</option>
-                {getDistrictsForState(selectedState).map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-stone-600">Level:</span>
-            <div className="bg-emerald-50 border border-emerald-300 rounded-lg px-2.5 py-1 text-emerald-900 font-bold text-xs">
-              🏛️ State Government
+        {/* Category Filter Pills (Farmers, Students/Scholarships, Women, Senior Citizens, etc.) */}
+        <div className="pt-2 border-t border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
+              Filter by Target Group / Category:
+            </span>
+            <div className="text-xs font-semibold text-stone-600 bg-stone-100 px-2.5 py-0.5 rounded-md border border-stone-200">
+              Showing <strong>{filteredSchemes.length}</strong> schemes
             </div>
           </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              let label = cat;
+              if (cat === 'Agriculture') label = '🌾 Farmers & Agriculture' as any;
+              if (cat === 'Scholarships') label = '🎓 Students & Scholarships' as any;
+              if (cat === 'Women') label = '👩 Women Empowerment' as any;
+              if (cat === 'Pension') label = '👴 Senior Citizens & Pension' as any;
 
-          {/* Quick State Filter Badges */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            {currentUser?.state && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedState(currentUser.state);
-                }}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer border transition-colors ${
-                  selectedState === currentUser.state
-                    ? 'bg-amber-100 text-amber-900 border-amber-300'
-                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                }`}
-              >
-                🏛️ {currentUser.state} Schemes
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setSelectedState('All States')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer border transition-colors ${
-                selectedState === 'All States'
-                  ? 'bg-amber-100 text-amber-900 border-amber-300'
-                  : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-              }`}
-            >
-              🏛️ All States
-            </button>
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-1">
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                  isSelected
-                    ? 'bg-emerald-800 text-white shadow-xs'
-                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -323,14 +290,14 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-stone-900 font-bold text-sm">
             <Globe className="w-4 h-4 text-emerald-800" />
-            <span>Search Active Government Portals with Google Search</span>
+            <span>Verify Live AP Government Portals</span>
           </div>
           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200">
-            Live Search Grounding
+            AP State Portals
           </span>
         </div>
         <p className="text-xs text-stone-600">
-          Looking for a specific state-level notification or rare fellowship not in our quick directory? Search all `.gov.in` and `.nic.in` sources directly:
+          Search live active notifications directly across official `.gov.in` and `.ap.gov.in` portals:
         </p>
 
         <form onSubmit={handleLiveAiSearch} className="flex gap-2">
@@ -338,7 +305,7 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
             type="text"
             value={liveAiQuery}
             onChange={(e) => setLiveAiQuery(e.target.value)}
-            placeholder="e.g. AP Post Matric Scholarship (Jnanabhumi) 2026 or Annadata Sukhibhava DBT..."
+            placeholder="e.g. Annadata Sukhibhava 2026, Thalliki Vandanam, Maha Shakti Aadabidda Nidhi, NTR Bharosa Pension..."
             className="flex-1 text-xs px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600"
           />
           <button
@@ -353,9 +320,19 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
         {/* Live Search Results */}
         {liveAiResult && (
           <div className="bg-white rounded-xl p-4 border border-stone-200 space-y-3 mt-3 text-xs shadow-xs animate-in fade-in">
-            <div className="font-bold text-stone-900 flex items-center gap-1.5 text-sm">
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              <span>Grounded Portal Information</span>
+            <div className="font-bold text-stone-900 flex items-center justify-between gap-1.5 text-sm">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                <span>Grounded AP Portal Information</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLiveAiResult(null)}
+                className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg cursor-pointer transition-colors"
+                title="Close results"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <div className="text-stone-700 leading-relaxed whitespace-pre-line text-xs font-normal">
               {liveAiResult.summary}
@@ -364,7 +341,7 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
             {liveAiResult.groundingUrls.length > 0 && (
               <div className="pt-2 border-t border-stone-100 space-y-1.5">
                 <div className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                  Verified Official Government Sources:
+                  Verified Official AP Government Sources:
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {liveAiResult.groundingUrls.map((url, i) => (
@@ -403,12 +380,12 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
 
       {filteredSchemes.length === 0 && (
         <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center max-w-md mx-auto space-y-3">
-          <p className="text-stone-700 font-bold text-sm">No schemes match selected filters</p>
+          <p className="text-stone-700 font-bold text-sm">No schemes match selected category</p>
           <button
-            onClick={() => { setSelectedCategory('All'); setSelectedState('All States'); setLocalSearch(''); }}
+            onClick={() => { setSelectedCategory('All'); }}
             className="px-4 py-2 text-xs font-bold bg-emerald-800 text-white rounded-lg hover:bg-emerald-700"
           >
-            Reset All Filters
+            Show All Andhra Pradesh Schemes
           </button>
         </div>
       )}
@@ -416,3 +393,4 @@ export const SchemesView: React.FC<SchemesViewProps> = ({ onSelectScheme }) => {
     </div>
   );
 };
+

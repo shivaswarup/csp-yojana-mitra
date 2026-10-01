@@ -14,6 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { ApplicationStatus, Scheme } from '../types';
 import { SCHEMES_DATABASE } from '../data/schemes';
+import { ensureAbsoluteUrl } from '../utils/urlUtils';
 
 interface AppliedSchemesViewProps {
   onSelectScheme: (scheme: Scheme) => void;
@@ -30,7 +31,7 @@ export const AppliedSchemesView: React.FC<AppliedSchemesViewProps> = ({ onSelect
       case 'Approved':
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'Under Review':
-        return 'bg-amber-100 text-amber-800 border-amber-300';
+        return 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold';
       case 'Applied':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'Rejected':
@@ -148,7 +149,7 @@ export const AppliedSchemesView: React.FC<AppliedSchemesViewProps> = ({ onSelect
                     <span className="text-stone-400">Official Portal:</span>
                     <div>
                       <a
-                        href={app.officialWebsite}
+                        href={ensureAbsoluteUrl(app.officialWebsite)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-semibold text-emerald-800 hover:underline inline-flex items-center gap-1 mt-0.5"

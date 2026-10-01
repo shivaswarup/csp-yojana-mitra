@@ -7,7 +7,7 @@ export const STATE_SCHEMES: Scheme[] = [
     name: 'Andhra Pradesh Annadata Sukhibhava - PM KISAN Scheme',
     slug: 'ap-annadata-sukhibhava',
     shortDescription: 'Annual financial support of ₹20,000 per farmer family in Andhra Pradesh (integrating ₹6,000 PM-KISAN + ₹14,000 AP State Assistance).',
-    description: 'Flagship farmer welfare initiative launched by the Government of Andhra Pradesh (formerly YSR Rythu Bharosa) providing ₹20,000 annual financial aid directly to farmer bank accounts to cover seed, fertilizer, and crop cultivation expenses.',
+    description: 'Flagship farmer welfare initiative launched by the Government of Andhra Pradesh providing ₹20,000 annual financial aid directly to farmer bank accounts to cover seed, fertilizer, and crop cultivation expenses.',
     category: 'Agriculture',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
@@ -30,20 +30,21 @@ export const STATE_SCHEMES: Scheme[] = [
       requiresFarmer: true
     },
     requiredDocuments: [
+      'Aadhaar Card of farmer head',
       'Pattadar Passbook / 1B Land record title',
       'Crop Cultivator Rights Card (CCRC) for tenant cultivators',
-      'Aadhaar Card and Aadhaar-seeded Bank Passbook'
+      'Aadhaar-seeded Bank Account Passbook (NPCI enabled)'
     ],
     applicationProcess: [
       'Farmer registration through Rythu Seva Kendras / Village Secretariats',
-      'Social audit and verification via e-Crop and Navasakam portal',
+      'Social audit and verification via e-Crop and PM-KISAN database',
       'Direct DBT credit into beneficiary bank account'
     ],
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Government of Andhra Pradesh, Agriculture Department',
+    officialWebsite: 'https://pmkisan.gov.in',
+    officialSource: 'Department of Agriculture & PM-KISAN, Government of India & AP',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'annadata sukhibhava', 'farmer', 'rythu bharosa', 'agriculture', 'dbt', 'super six'],
     targetEmploymentStatuses: ['Farmer']
@@ -57,7 +58,7 @@ export const STATE_SCHEMES: Scheme[] = [
     category: 'Healthcare',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
-    department: 'Dr. NTR Vaidya Seva Trust, Government of Andhra Pradesh',
+    department: 'Dr. NTR Vaidya Seva Trust & National Health Authority',
     financialBenefitAmount: '₹25,00,000 Cashless Hospitalization per family per year + Post-operative recovery allowance',
     benefits: [
       'Complete cashless hospital coverage up to ₹25,00,000 for 3,257 notified medical procedures',
@@ -75,9 +76,9 @@ export const STATE_SCHEMES: Scheme[] = [
       maxIncome: 500000
     },
     requiredDocuments: [
-      'Aadhaar Card of patient',
-      'AP Rice Card / NTR Vaidya Seva Card',
-      'Medical prescription or referral from government hospital/empanelled centre'
+      'Aadhaar Card of patient / family members',
+      'AP Rice Card / White Ration Card / Health Card',
+      'Doctor Prescription / Hospital referral memo'
     ],
     applicationProcess: [
       'Visit any empanelled network hospital in AP, Hyderabad, Bengaluru, or Chennai',
@@ -87,8 +88,8 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://aarogyasri.ap.gov.in',
-    officialSource: 'Dr. NTR Vaidya Seva Trust, Government of Andhra Pradesh',
+    officialWebsite: 'https://pmjay.gov.in',
+    officialSource: 'Dr. NTR Vaidya Seva Trust & PM-JAY National Health Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'ntr vaidya seva', 'healthcare', 'aarogyasri', 'cashless hospital', 'health card']
   },
@@ -102,7 +103,7 @@ export const STATE_SCHEMES: Scheme[] = [
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
     department: 'School Education Department, Government of Andhra Pradesh',
-    financialBenefitAmount: '₹15,000 per school-going child per year',
+    financialBenefitAmount: '₹15,00,0 per school-going child per year',
     benefits: [
       '₹15,000 direct benefit transfer credited into the mother’s Aadhaar-linked bank account',
       'Applicable to all school-going children from Class 1 to 12 in the family',
@@ -124,8 +125,8 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card of student and mother',
       'White Ration Card / AP Rice Card',
-      'School Bonafide / Student Information System (UDISE) record',
-      'Mother’s Bank Account Passbook'
+      'School Bonafide Certificate / Student Information System (UDISE) record',
+      'Mother’s Bank Account Passbook (Aadhaar-seeded)'
     ],
     applicationProcess: [
       'School Headmaster verifies student enrollment and attendance on Child Info portal',
@@ -135,8 +136,8 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: '31 October 2026',
     deadlineDate: '2026-10-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://jnanabhumi.ap.gov.in',
-    officialSource: 'Department of School Education, Government of Andhra Pradesh',
+    officialWebsite: 'https://scholarships.gov.in',
+    officialSource: 'Department of School Education & National Scholarship Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'thalliki vandanam', 'amma vodi', 'education', 'school grant', 'super six']
   },
@@ -168,7 +169,7 @@ export const STATE_SCHEMES: Scheme[] = [
       genders: ['female']
     },
     requiredDocuments: [
-      'Aadhaar Card or AP Residence Proof / Voter ID / Student ID for age verification'
+      'Aadhaar Card or AP Residence Proof / Voter ID / Student ID with photo'
     ],
     applicationProcess: [
       'Board any APSRTC Palle Velugu or Express bus within Andhra Pradesh',
@@ -214,20 +215,20 @@ export const STATE_SCHEMES: Scheme[] = [
     },
     requiredDocuments: [
       'Aadhaar Card of the woman applicant',
-      'AP Rice Card / Ration Card',
-      'Bank Account Passbook showing Aadhaar linkage',
-      'Income Certificate (or Rice Card valid as income proof)'
+      'AP Rice Card / White Ration Card',
+      'Bank Account Passbook showing Aadhaar linkage (NPCI mapped)',
+      'Income Certificate (or Rice Card as proof of income)'
     ],
     applicationProcess: [
-      'Submit application at nearest Village / Ward Sachivalayam or online via GSWS portal',
+      'Submit application at nearest Village / Ward Sachivalayam or online via citizen portal',
       'Field verification by Village Social Welfare Assistant',
       'Monthly DBT credit disbursed directly on the specified DBT day each month'
     ],
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Department of Women Development and Child Welfare, Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Department of Women Development and Child Welfare & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'aadabidda nidhi', 'maha shakti', 'women', 'financial aid', 'super six', 'dbt'],
     targetEmploymentStatuses: ['Women']
@@ -263,8 +264,8 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card of woman LPG consumer',
       'AP Rice Card / Ration Card',
-      'LPG Connection Consumer Passbook (HPCL, BPCL, or IOCL)',
-      'Aadhaar-seeded Bank Account'
+      'LPG Connection Consumer Passbook / Subscription voucher (HPCL, BPCL, or IOCL)',
+      'Aadhaar-seeded Bank Account Passbook'
     ],
     applicationProcess: [
       'Ensure Aadhaar and Rice Card are linked with your local LPG gas distributor',
@@ -274,18 +275,18 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://spandana.ap.gov.in',
-    officialSource: 'Civil Supplies Department, Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Civil Supplies Department & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'deepam scheme', 'lpg gas', 'free cylinder', 'super six', 'women'],
     targetEmploymentStatuses: ['Women']
   },
   {
     id: 'ap-ysr-cheyutha-women',
-    name: 'Andhra Pradesh YSR Cheyutha & Stree Nidhi Livelihood Scheme',
+    name: 'Andhra Pradesh Cheyutha & Stree Nidhi Livelihood Scheme',
     slug: 'ap-ysr-cheyutha-women',
     shortDescription: 'Financial assistance of ₹18,750 per year (Total ₹75,000 over 4 years) for women aged 45–60 years from SC, ST, BC, and Minority communities to set up sustainable micro-enterprises.',
-    description: 'YSR Cheyutha provides ₹18,750 per year for 4 consecutive years (totaling ₹75,000) directly to women between 45 and 60 years of age belonging to underprivileged SC, ST, BC, and Minority communities. In partnership with corporates like Amul, ITC, and HUL, the scheme facilitates dairy units, grocery stores, and poultry farming.',
+    description: 'Cheyutha provides ₹18,750 per year for 4 consecutive years (totaling ₹75,000) directly to women between 45 and 60 years of age belonging to underprivileged SC, ST, BC, and Minority communities. In partnership with corporates like Amul, ITC, and HUL, the scheme facilitates dairy units, grocery stores, and poultry farming.',
     category: 'Women',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
@@ -316,24 +317,24 @@ export const STATE_SCHEMES: Scheme[] = [
     ],
     applicationProcess: [
       'Apply at your Village / Ward Secretariat (Sachivalayam) through the Welfare Assistant',
-      'Verification of caste, age, and socioeconomic parameters through Navasakam',
+      'Verification of caste, age, and socioeconomic parameters',
       'DBT disbursement credited into bank account'
     ],
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Society for Elimination of Rural Poverty (SERP), Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Society for Elimination of Rural Poverty (SERP) & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'cheyutha', 'women', 'livelihood', 'stree nidhi', 'micro enterprise'],
     targetEmploymentStatuses: ['Women']
   },
   {
     id: 'ap-kalyana-masthu',
-    name: 'Andhra Pradesh YSR Kalyana Masthu & Shaadi Mubarak Scheme',
+    name: 'Andhra Pradesh Kalyana Masthu & Shaadi Mubarak Scheme',
     slug: 'ap-kalyana-masthu',
     shortDescription: 'One-time financial marriage grant of up to ₹1,00,000 for poor brides from SC, ST, BC, and Minority communities with mandatory 10th pass qualification.',
-    description: 'YSR Kalyana Masthu (and Shaadi Mubarak for Minorities) provides financial assistance up to ₹1,00,000 to impoverished brides from SC, ST, BC, Minority, and disabled families. To encourage education and eradicate child marriage, both the bride and groom must be at least 18 and 21 years old respectively, and both must have passed Class 10th (SSC).',
+    description: 'Kalyana Masthu (and Shaadi Mubarak for Minorities) provides financial assistance up to ₹1,00,000 to impoverished brides from SC, ST, BC, Minority, and disabled families. To encourage education and eradicate child marriage, both the bride and groom must be at least 18 and 21 years old respectively, and both must have passed Class 10th (SSC).',
     category: 'Women',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
@@ -359,20 +360,21 @@ export const STATE_SCHEMES: Scheme[] = [
     },
     requiredDocuments: [
       'Bride and Groom Aadhaar Cards',
-      'Class 10th SSC Passing Certificates of bride and groom',
-      'Marriage Certificate or Marriage Registration Acknowledgement',
-      'Caste Certificate and Rice Card'
+      'Class 10th (SSC) Passing Certificate / Marks Memo of bride and groom',
+      'Marriage Registration Certificate / Nikahnama / Vivah Registration',
+      'Caste Certificate and White Ration Card / Rice Card',
+      'Bride’s Bank Account Passbook'
     ],
     applicationProcess: [
-      'Apply at Village / Ward Sachivalayam or Navasakam portal within 60 days of marriage',
+      'Apply at Village / Ward Sachivalayam or citizen portal within 60 days of marriage',
       'Joint physical verification by Village Welfare & Education Assistant',
       'Grant disbursed directly into the bride’s bank account'
     ],
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Social Welfare Department, Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Social Welfare Department & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'kalyana masthu', 'shaadi mubarak', 'women', 'marriage aid'],
     targetEmploymentStatuses: ['Women']
@@ -384,7 +386,7 @@ export const STATE_SCHEMES: Scheme[] = [
     name: 'Andhra Pradesh NTR Bharosa Senior Citizen Pension Scheme (Old Age Pension)',
     slug: 'ap-ntr-bharosa-pension',
     shortDescription: 'Enhanced monthly old age pension of ₹4,000 delivered directly at the doorstep on the 1st of every month for senior citizens aged 60+ in Andhra Pradesh.',
-    description: 'Under the TDP/NDA coalition government and the Super Six guarantees, the flagship NTR Bharosa Pension (formerly YSR Pension Kanuka) was enhanced from ₹3,000 to ₹4,000 per month for senior citizens aged 60 years and above. The pension is disbursed punctually on the 1st day of every month directly at the elderly citizen’s doorstep by Village/Ward Secretariat volunteers.',
+    description: 'Under the TDP/NDA coalition government and the Super Six guarantees, the flagship NTR Bharosa Pension (formerly YSR Pension Kanuka) was enhanced from ₹3,000 to ₹4,000 per month for senior citizens aged 60 years and above. The pension is disbursed punctually on the 1st day of every month directly at the elderly citizen’s doorstep by Village/Ward Secretariat staff.',
     category: 'Pension',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
@@ -422,8 +424,8 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://sspensions.ap.gov.in',
-    officialSource: 'Society for Elimination of Rural Poverty (SERP), Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in/search?q=pension',
+    officialSource: 'Society for Elimination of Rural Poverty (SERP) & National Social Assistance Programme',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'ntr bharosa', 'pension', 'senior citizen', 'old age pension', 'super six'],
     targetEmploymentStatuses: ['Senior Citizen']
@@ -437,7 +439,7 @@ export const STATE_SCHEMES: Scheme[] = [
     category: 'Healthcare',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
-    department: 'Dr. NTR Vaidya Seva Trust, Government of Andhra Pradesh',
+    department: 'Dr. NTR Vaidya Seva Trust & National Health Authority',
     financialBenefitAmount: '₹25,00,000 Cashless Hospital Treatment + ₹5,000/month Aarogya Aasara Recovery Allowance',
     benefits: [
       'Cashless coverage up to ₹25,00,000 for cardiac surgeries, cataract surgeries, orthopedic knee/hip implants, dialysis, and cancer treatments',
@@ -469,8 +471,8 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://aarogyasri.ap.gov.in',
-    officialSource: 'Dr. NTR Vaidya Seva Trust, Government of Andhra Pradesh',
+    officialWebsite: 'https://pmjay.gov.in',
+    officialSource: 'Dr. NTR Vaidya Seva Trust & PM-JAY Health Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'ntr vaidya seva', 'senior citizen', 'geriatric', 'healthcare', 'aarogya aasara'],
     targetEmploymentStatuses: ['Senior Citizen']
@@ -484,7 +486,7 @@ export const STATE_SCHEMES: Scheme[] = [
     category: 'Social Security',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
-    department: 'Department for Empowerment of Senior Citizens, Government of Andhra Pradesh & ALIMCO',
+    department: 'Department for Empowerment of Senior Citizens & ALIMCO',
     financialBenefitAmount: '100% Free Assisted Living Aids (Valued up to ₹25,000 per beneficiary)',
     benefits: [
       'Free distribution of digital hearing aids, motorized/standard wheelchairs, folding walkers, tripod canes, and spectacles',
@@ -506,7 +508,8 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card proving age 60+',
       'AP Rice Card / Income Certificate',
-      'Passport size photograph'
+      'Passport size photograph',
+      'Clinical assessment slip from medical officer'
     ],
     applicationProcess: [
       'Attend the designated Vayo Vandana screening camp organized at Mandal / Municipality headquarters',
@@ -516,8 +519,8 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Welfare of Senior Citizens Department, Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Welfare of Senior Citizens Department & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'vayo vandana', 'senior citizen', 'assistive devices', 'hearing aid', 'wheelchair'],
     targetEmploymentStatuses: ['Senior Citizen']
@@ -536,7 +539,7 @@ export const STATE_SCHEMES: Scheme[] = [
     benefits: [
       '25% discount on passenger fare on Palle Velugu, Express, Deluxe, and Super Luxury APSRTC buses',
       'Specially earmarked reserved seats in front rows of all state buses',
-      'Priority queue privileges at government outpatient departments (OPD) and MeeSeva citizen centers'
+      'Priority queue privileges at government outpatient departments (OPD) and citizen service centers'
     ],
     eligibility: [
       'Resident of Andhra Pradesh aged 60 years or older',
@@ -595,7 +598,7 @@ export const STATE_SCHEMES: Scheme[] = [
     },
     requiredDocuments: [
       'Aadhaar Card',
-      'BPL Certificate / White Ration Card',
+      'BPL Certificate / White Ration Card / Rice Card',
       'Aadhaar-linked Bank Account Passbook'
     ],
     applicationProcess: [
@@ -606,18 +609,18 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://nsap.nic.in',
-    officialSource: 'Ministry of Rural Development & Government of Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in/search?q=pension',
+    officialSource: 'Ministry of Rural Development & NSAP Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'ignoaps', 'senior citizen', 'nsap', 'old age pension', 'dbt'],
     targetEmploymentStatuses: ['Senior Citizen']
   },
   {
     id: 'ap-vidya-deevena-reimbursement',
-    name: 'Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement via JnanaBhumi)',
+    name: 'Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement)',
     slug: 'ap-vidya-deevena-reimbursement',
     shortDescription: '100% full tuition fee reimbursement credited directly for ITI, Polytechnic, Degree, Engineering, and PG students in Andhra Pradesh.',
-    description: 'Flagship higher education welfare program of the Government of Andhra Pradesh providing 100% full tuition fee reimbursement directly for students pursuing polytechnic, engineering, pharmacy, degree, and postgraduate courses via the official JnanaBhumi portal.',
+    description: 'Flagship higher education welfare program of the Government of Andhra Pradesh providing 100% full tuition fee reimbursement directly for students pursuing polytechnic, engineering, pharmacy, degree, and postgraduate courses via National Scholarship Portal & Higher Education Dept.',
     category: 'Scholarships',
     state: 'Andhra Pradesh',
     governmentLevel: 'State',
@@ -645,26 +648,26 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card of student and mother',
       'AP Rice Card / White Ration Card (or Income Certificate under ₹2.5 Lakhs)',
-      'Integrated Caste Certificate issued via MeeSeva',
-      'College Admission details and Jnanabhumi student ID',
+      'Integrated Caste Certificate (SC/ST/BC/Minority/EWS)',
+      'College Admission Fee Receipt and Bonafide Study Certificate',
       'Aadhaar-seeded Bank Account Passbook'
     ],
     applicationProcess: [
-      'Student applies via College Principal / Nodal Officer on Jnanabhumi portal (jnanabhumi.ap.gov.in)',
+      'Student applies via College Principal / Nodal Officer or National Scholarship Portal',
       'Field verification completed by Village / Ward Sachivalayam staff',
       'Sanctions approved and credited in quarterly cycles via DBT'
     ],
     deadline: '15 November 2026',
     deadlineDate: '2026-11-15',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://jnanabhumi.ap.gov.in',
-    officialSource: 'Government of Andhra Pradesh, Social Welfare Dept',
+    officialWebsite: 'https://jnanabhumi.ap.gov.in/',
+    officialSource: 'Government of Andhra Pradesh & AP JnanaBhumi Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'state scheme', 'scholarship', 'vidya deevena', 'fee reimbursement', 'jnanabhumi']
   },
   {
     id: 'ap-vasathi-deevena-grant',
-    name: 'Andhra Pradesh Vasathi Deevena (Hostel & Boarding Grant via JnanaBhumi)',
+    name: 'Andhra Pradesh Vasathi Deevena (Hostel & Boarding Grant)',
     slug: 'ap-vasathi-deevena-grant',
     shortDescription: 'Annual financial assistance of ₹20,000 for degree/engineering, ₹15,000 for polytechnic, and ₹10,000 for ITI students for food & hostel expenses.',
     description: 'Vasathi Deevena provides annual financial aid to meet boarding, lodging, and hostel expenses of college students from low-income families in Andhra Pradesh, credited in two installments into the mother’s account.',
@@ -695,25 +698,25 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card of student and mother',
       'AP Rice Card / FSC / Income Certificate',
-      'College Bonafide Study Certificate',
-      'Mother’s Bank Passbook'
+      'College Bonafide Study Certificate and Hostel Certificate',
+      'Mother’s Aadhaar-linked Bank Passbook'
     ],
     applicationProcess: [
-      'Applied concurrently with Vidya Deevena on Jnanabhumi portal',
+      'Applied concurrently with Vidya Deevena via college desk or AP JnanaBhumi Portal',
       'College Principal certifies semester enrollment and attendance',
-      'Disbursed through Navasakam DBT gateway'
+      'Disbursed through official DBT gateway'
     ],
     deadline: '15 November 2026',
     deadlineDate: '2026-11-15',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://jnanabhumi.ap.gov.in',
-    officialSource: 'Government of Andhra Pradesh, Social Welfare Dept',
+    officialWebsite: 'https://jnanabhumi.ap.gov.in/',
+    officialSource: 'Government of Andhra Pradesh & AP JnanaBhumi Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'state scheme', 'scholarship', 'vasathi deevena', 'hostel grant']
   },
   {
     id: 'ap-videshi-vidya-scheme',
-    name: 'Andhra Pradesh Overseas Study Grant (JnanaBhumi Videshi Vidya)',
+    name: 'Andhra Pradesh Overseas Study Grant (Videshi Vidya)',
     slug: 'ap-videshi-vidya-scheme',
     shortDescription: 'Financial grant up to ₹1.25 Crore for SC, ST, BC, Minority, and EWS students securing admission in top 100 QS-ranked global universities.',
     description: 'The Government of Andhra Pradesh sanctions financial grants up to ₹1.25 Crore (100% of tuition and living fees for top 50 QS universities, and up to ₹50 Lakhs for top 51–100 universities) for meritorious underprivileged students pursuing Master’s or PhD degrees abroad.',
@@ -744,20 +747,20 @@ export const STATE_SCHEMES: Scheme[] = [
     },
     requiredDocuments: [
       'Aadhaar Card and AP Domicile Certificate',
-      'Caste Certificate and Income Certificate from MeeSeva',
+      'Caste Certificate and Income Certificate from MeeSeva / Tahsildar',
       'Unconditional admission offer letter from QS top 100 university',
       'GRE / GMAT / IELTS / TOEFL score report',
-      'Valid Passport and Student Visa'
+      'Valid Indian Passport and Student Visa'
     ],
     applicationProcess: [
-      'Register on Jnanabhumi Videshi Vidya portal',
+      'Register on official AP JnanaBhumi portal',
       'Upload university offer letter and academic credentials',
       'Scrutiny by State Level Selection Committee and release of DBT milestone payments'
     ],
     deadline: '30 November 2026',
     deadlineDate: '2026-11-30',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://jnanabhumi.ap.gov.in',
+    officialWebsite: 'https://jnanabhumi.ap.gov.in/',
     officialSource: 'Government of Andhra Pradesh, Higher Education Dept',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'state scheme', 'overseas scholarship', 'videshi vidya', 'foreign studies']
@@ -794,11 +797,11 @@ export const STATE_SCHEMES: Scheme[] = [
     requiredDocuments: [
       'Aadhaar Card of applicant',
       'Educational Degree / Diploma Certificate and Marks Memo',
-      'AP Employment Exchange registration card',
+      'AP Employment Exchange registration card / Roll number',
       'Aadhaar-linked Bank Passbook'
     ],
     applicationProcess: [
-      'Register on AP Skill / Spandana Portal',
+      'Register on AP Skill Development Corporation Portal (apssdc.in)',
       'Verification of degree and unemployment status',
       'Monthly allowance credited directly to account'
     ],
@@ -840,8 +843,8 @@ export const STATE_SCHEMES: Scheme[] = [
     },
     requiredDocuments: [
       'SHG Group Registration details and Member Aadhaar Cards',
-      'SHG Bank Loan Passbook showing regular repayments',
-      'Rice Card / FSC'
+      'SHG Bank Loan Account Passbook showing regular repayments',
+      'Rice Card / White Ration Card'
     ],
     applicationProcess: [
       'SHG applies through Village Organization (VO) / Slum Level Federation (SLF)',
@@ -851,10 +854,390 @@ export const STATE_SCHEMES: Scheme[] = [
     deadline: 'Open Year Round',
     deadlineDate: '2026-12-31',
     isDeadlineApproaching: false,
-    officialWebsite: 'https://navasakam2.apcfss.in',
-    officialSource: 'Society for Elimination of Rural Poverty (SERP), Andhra Pradesh',
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'Society for Elimination of Rural Poverty (SERP) & myScheme Portal',
     lastUpdated: 'August 2026',
     tags: ['andhra pradesh', 'ap', 'sunna vaddi', 'dwcra', 'women', 'shg', 'interest free loan'],
     targetEmploymentStatuses: ['Women']
+  },
+  // Additional Farmer Schemes
+  {
+    id: 'ap-dr-ysr-free-crop-insurance',
+    name: 'Andhra Pradesh Free Crop Insurance Scheme (PMFBY State Integration)',
+    slug: 'ap-dr-ysr-free-crop-insurance',
+    shortDescription: '100% state-funded crop insurance covering 100% of farmer premium on all notified food and commercial crops across Andhra Pradesh.',
+    description: 'Under the AP Free Crop Insurance Scheme, the Government of Andhra Pradesh pays 100% of the farmer’s share of insurance premium under the Pradhan Mantri Fasal Bima Yojana (PMFBY). In the event of drought, cyclones, or untimely rains, crop damage compensation is deposited directly into the farmer’s bank account based on e-Crop registration without any application fee.',
+    category: 'Agriculture',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Department of Agriculture & AP General Insurance Corporation, Government of Andhra Pradesh',
+    financialBenefitAmount: '100% Free Premium Subsidy + Direct Crop Loss Compensation up to ₹50,000/hectare',
+    benefits: [
+      'Farmer pays nominal ₹1 token per acre; full commercial premium is borne by AP Government',
+      'Automatic compensation payout via DBT based on scientific satellite crop cutting experiments',
+      'Protects paddy, groundnut, cotton, chili, pulses, and maize farmers from natural disaster losses'
+    ],
+    eligibility: [
+      'Farmer cultivating land in Andhra Pradesh registered on official e-Crop portal',
+      'Landholding farmers and tenant farmers holding valid CCRC cards'
+    ],
+    eligibilityRules: {
+      minAge: 18,
+      maxAge: 100,
+      states: ['Andhra Pradesh'],
+      requiresFarmer: true
+    },
+    requiredDocuments: [
+      'Aadhaar Card of farmer',
+      'e-Crop booking acknowledgment / Pattadar Passbook / CCRC card',
+      'Aadhaar-seeded Bank Passbook'
+    ],
+    applicationProcess: [
+      'Get crop cultivated registered during seasonal e-Crop survey by Village Agriculture Assistant (VAA)',
+      'Check name in published eligible farmer list at Rythu Bharosa Kendra (RBK)',
+      'Claim compensation transferred automatically post-harvest disaster assessment'
+    ],
+    deadline: '31 December 2026',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://pmfby.gov.in',
+    officialSource: 'Department of Agriculture, AP & PMFBY National Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'crop insurance', 'farmer', 'pmfby', 'agriculture', 'dbt'],
+    targetEmploymentStatuses: ['Farmer']
+  },
+  {
+    id: 'ap-pm-kusum-solar-pump',
+    name: 'Pradhan Mantri KUSUM Solar Agriculture Pump Scheme (AP State Portal)',
+    slug: 'ap-pm-kusum-solar-pump',
+    shortDescription: 'Up to 90% capital subsidy on standalone solar agriculture pumps (3HP to 7.5HP) for farmers in Andhra Pradesh with zero grid power bills.',
+    description: 'Under PM-KUSUM Component-B integrated with Andhra Pradesh State Energy Development Corporation (NREDCAP), farmers receive 30% Central grant + 30% AP State subsidy + 30% bank loan (up to 90% total financial support) for installation of off-grid solar-powered irrigation pumpsets.',
+    category: 'Agriculture',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'New and Renewable Energy Development Corporation of AP (NREDCAP)',
+    financialBenefitAmount: 'Up to 90% Subsidy on 3HP, 5HP & 7.5HP Solar Pumpsets (Benefit ₹1.5L to ₹3.5L)',
+    benefits: [
+      'Provides reliable daytime irrigation with zero electricity charges or diesel expenses',
+      'Replaces expensive diesel pump operations with clean, maintenance-free solar energy',
+      '5-year comprehensive warranty and remote performance monitoring'
+    ],
+    eligibility: [
+      'Individual farmers, farmer groups, or water user associations in Andhra Pradesh',
+      'Possessing cultivable agricultural land with viable open well or borewell water source'
+    ],
+    eligibilityRules: {
+      minAge: 18,
+      maxAge: 85,
+      states: ['Andhra Pradesh'],
+      requiresFarmer: true
+    },
+    requiredDocuments: [
+      'Aadhaar Card',
+      'Pattadar Passbook / 1B Land Record',
+      'Water Source / Borewell certificate',
+      'Bank Account details'
+    ],
+    applicationProcess: [
+      'Apply online on NREDCAP AP portal or through Rythu Seva Kendra',
+      'Technical site feasibility survey by renewable energy engineers',
+      'Deposit beneficiary contribution and prompt installation of solar array'
+    ],
+    deadline: '31 December 2026',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://pmkusum.mnre.gov.in',
+    officialSource: 'Ministry of New & Renewable Energy & NREDCAP Andhra Pradesh',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'pm kusum', 'solar pump', 'farmer', 'irrigation', 'agriculture'],
+    targetEmploymentStatuses: ['Farmer']
+  },
+  // Additional Student & Scholarship Schemes
+  {
+    id: 'ap-national-scholarship-post-matric',
+    name: 'National Scholarship Portal (NSP) Post-Matric Scholarship for SC/ST/OBC Students (AP)',
+    slug: 'ap-national-scholarship-post-matric',
+    shortDescription: 'Annual scholarship of up to ₹20,000 plus non-refundable course fee waiver for Class 11, 12, ITI, Diploma, Graduation, and Postgraduation.',
+    description: 'Centrally sponsored Post-Matric Scholarship administered via National Scholarship Portal (NSP) and AP Social Welfare Department for meritorious students belonging to SC, ST, OBC, and Minority communities to pursue higher secondary, undergraduate, and postgraduate studies.',
+    category: 'Scholarships',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Ministry of Social Justice and Empowerment & AP Social Welfare Dept',
+    financialBenefitAmount: '₹7,000 to ₹20,000 per year maintenance allowance + 100% compulsory fee support',
+    benefits: [
+      'Monthly maintenance allowance credited directly via Aadhaar DBT',
+      'Full reimbursement of tuition, laboratory, library, and examination fees',
+      'Enables students from economically weaker backgrounds to attain graduation and degrees'
+    ],
+    eligibility: [
+      'Permanent resident student of Andhra Pradesh',
+      'Studying in Class 11, 12, Diploma, UG, PG, or Professional college',
+      'Family annual income under ₹2.5 Lakhs (SC/ST) or ₹1.5 Lakhs (OBC/EBC)'
+    ],
+    eligibilityRules: {
+      minAge: 15,
+      maxAge: 30,
+      states: ['Andhra Pradesh'],
+      categories: ['SC', 'ST', 'OBC', 'Minority'],
+      maxIncome: 250000,
+      requiresStudent: true
+    },
+    requiredDocuments: [
+      'Aadhaar Card of student',
+      'Previous year academic marksheet / Passing certificate',
+      'Caste Certificate and Income Certificate',
+      'Bonafide Student Certificate from College / Institution',
+      'Aadhaar-seeded Bank Account Passbook'
+    ],
+    applicationProcess: [
+      'Register on National Scholarship Portal (scholarships.gov.in) with Aadhaar verification (OTR)',
+      'Fill post-matric scholarship application and select Andhra Pradesh state domicile',
+      'Institute verification by College Nodal Officer and final sanction by State Welfare Officer'
+    ],
+    deadline: '31 December 2026',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://scholarships.gov.in',
+    officialSource: 'National Scholarship Portal (NSP), Government of India',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'scholarship', 'nsp', 'post-matric', 'students', 'education'],
+    targetEmploymentStatuses: ['Student']
+  },
+  {
+    id: 'ap-aicte-pragati-scholarship',
+    name: 'AICTE Pragati Scholarship Scheme for Girl Students in Technical Education (AP)',
+    slug: 'ap-aicte-pragati-scholarship',
+    shortDescription: '₹50,000 per year for all 4 years of Technical Degree (Engineering) or 3 years of Diploma for female students in Andhra Pradesh.',
+    description: 'AICTE Pragati Scholarship provides ₹50,000 per annum to meritorious female students admitted into first year of Technical Degree or Diploma programs in AICTE-approved colleges in Andhra Pradesh, supporting tuition, laptops, books, and competitive exam fees.',
+    category: 'Scholarships',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'All India Council for Technical Education (AICTE) & Ministry of Education',
+    financialBenefitAmount: '₹50,000 per year (Total ₹2,00,000 for B.Tech / ₹1,50,000 for Polytechnic)',
+    benefits: [
+      '₹50,000 per year direct DBT payment for every year of technical degree/diploma course',
+      'Covers college tuition, purchase of laptops, books, and engineering equipment',
+      'No cap on the number of scholarships per state; awarded to all eligible applicants meeting criteria'
+    ],
+    eligibility: [
+      'Girl student resident of Andhra Pradesh admitted to 1st year of AICTE-approved Degree/Diploma course',
+      'Family annual income must not exceed ₹8,00,000 per annum',
+      'Maximum two girl children per family eligible'
+    ],
+    eligibilityRules: {
+      minAge: 16,
+      maxAge: 25,
+      states: ['Andhra Pradesh'],
+      genders: ['female'],
+      maxIncome: 800000,
+      requiresStudent: true
+    },
+    requiredDocuments: [
+      'Aadhaar Card of girl student',
+      '10th & 12th / Polytechnic Entrance rank card and marks memo',
+      'Allotment letter & Fee receipt from AICTE-approved engineering/polytechnic college',
+      'Family Income Certificate (below ₹8 Lakhs)',
+      'Aadhaar-linked Bank Passbook'
+    ],
+    applicationProcess: [
+      'Apply on National Scholarship Portal (scholarships.gov.in)',
+      'Online verification by College Principal / AICTE coordinator',
+      'Direct benefit transfer credited into student bank account'
+    ],
+    deadline: '31 December 2026',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://scholarships.gov.in',
+    officialSource: 'AICTE & National Scholarship Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'aicte pragati', 'scholarship', 'women in tech', 'engineering', 'girls'],
+    targetEmploymentStatuses: ['Student', 'Women']
+  },
+  // Additional Women Schemes
+  {
+    id: 'ap-pmmvy-matru-vandana',
+    name: 'Pradhan Mantri Matru Vandana Yojana (PMMVY - AP State Health Integration)',
+    slug: 'ap-pmmvy-matru-vandana',
+    shortDescription: 'Maternity financial grant of ₹5,000 to ₹6,000 for pregnant women and lactating mothers for first and second girl child.',
+    description: 'PMMVY provides direct cash incentive of ₹5,000 for the first child and ₹6,000 for a second girl child directly to pregnant women and lactating mothers across Andhra Pradesh, compensating for wage loss and improving maternal and newborn nutrition.',
+    category: 'Women',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Ministry of Women and Child Development & AP Health Dept',
+    financialBenefitAmount: '₹5,000 (First Child) | ₹6,000 (Second Girl Child) DBT Cash',
+    benefits: [
+      'Direct cash transfer in installments into mother’s Aadhaar-linked bank account',
+      'Ensures early antenatal check-ups, institutional hospital delivery, and child vaccination',
+      'Reduces maternal and infant mortality across Andhra Pradesh'
+    ],
+    eligibility: [
+      'Pregnant women and lactating mothers residing in Andhra Pradesh',
+      'Holding AP Rice Card / EWS / SC/ST / PwD / BPL card',
+      'Registered at local Anganwadi Center'
+    ],
+    eligibilityRules: {
+      minAge: 19,
+      maxAge: 45,
+      states: ['Andhra Pradesh'],
+      genders: ['female']
+    },
+    requiredDocuments: [
+      'Mother and Father Aadhaar Cards',
+      'Mother and Child Protection (MCP) Card from Anganwadi / Primary Health Center',
+      'AP Rice Card / Ration Card',
+      'Mother’s Aadhaar-linked Bank Passbook'
+    ],
+    applicationProcess: [
+      'Register pregnancy at local Anganwadi Center (AWC) or Primary Health Center (PHC)',
+      'Anganwadi worker registers application on PMMVY portal (pmmvy.wcd.gov.in)',
+      'DBT installments disbursed directly into the mother’s account'
+    ],
+    deadline: 'Open Year Round',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://pmmvy.wcd.gov.in',
+    officialSource: 'Ministry of Women and Child Development & National Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'pmmvy', 'maternity', 'women', 'nutrition', 'dbt'],
+    targetEmploymentStatuses: ['Women']
+  },
+  {
+    id: 'ap-sukanya-samriddhi-yojana',
+    name: 'Sukanya Samriddhi Yojana (SSY - AP Post Office & Bank Scheme)',
+    slug: 'ap-sukanya-samriddhi-yojana',
+    shortDescription: 'High-interest (8.2% p.a.) tax-free small savings scheme for girl child aged 0–10 years for higher education and marriage fund.',
+    description: 'Sukanya Samriddhi Account can be opened by parents for a girl child from birth up to age 10 years at any Post Office or commercial bank branch in Andhra Pradesh. Offers maximum government interest rate (8.2%), Section 80C tax deduction, and 100% tax-free maturity amount.',
+    category: 'Women',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Department of Posts & Ministry of Finance, Government of India',
+    financialBenefitAmount: 'Highest Small Savings Interest (8.2% Compound Annual) + Triple Tax Exemption',
+    benefits: [
+      'High guaranteed sovereign interest rate compounded annually',
+      'Deposit as little as ₹250 per year up to ₹1,50,000 per financial year',
+      '50% partial withdrawal allowed for girl’s higher education after age 18'
+    ],
+    eligibility: [
+      'Girl child resident of Andhra Pradesh aged between 0 and 10 years',
+      'Opened by biological parents or legal guardian'
+    ],
+    eligibilityRules: {
+      minAge: 0,
+      maxAge: 10,
+      states: ['Andhra Pradesh'],
+      genders: ['female']
+    },
+    requiredDocuments: [
+      'Birth Certificate of the girl child',
+      'Aadhaar Card & PAN Card of Parent / Guardian',
+      'Passport size photographs'
+    ],
+    applicationProcess: [
+      'Visit nearest AP Post Office or bank branch (SBI, Andhra Pragathi Grameena Bank, etc.)',
+      'Submit SSY opening form with initial minimum deposit of ₹250',
+      'Receive official SSY Account Passbook'
+    ],
+    deadline: 'Open Year Round',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://www.myscheme.gov.in',
+    officialSource: 'India Post & myScheme Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'sukanya samriddhi', 'girl child', 'women', 'savings'],
+    targetEmploymentStatuses: ['Women']
+  },
+  // Additional Senior Citizen Schemes
+  {
+    id: 'ap-ntr-bharosa-disability-pension',
+    name: 'Andhra Pradesh NTR Bharosa Disability & PwD Pension Scheme',
+    slug: 'ap-ntr-bharosa-disability-pension',
+    shortDescription: 'Enhanced monthly pension of ₹6,000 per month (and up to ₹15,000 for fully bedridden) delivered at doorstep for persons with disabilities in AP.',
+    description: 'Under the enhanced welfare rates in Andhra Pradesh, persons with disabilities (PwD) and senior citizens with severe locomotor disabilities receive ₹6,000 monthly pension delivered at their doorstep on the 1st of every month via SADAREM certification.',
+    category: 'Pension',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Department of Social Welfare & SERP, Government of Andhra Pradesh',
+    financialBenefitAmount: '₹6,000 per month (Up to ₹15,000/month for severe/bedridden disability)',
+    benefits: [
+      '₹6,000 monthly pension delivered directly at home in cash or bank transfer on the 1st of every month',
+      'Free assistive aids and transport bus concession across Andhra Pradesh',
+      'Guaranteed lifelong economic dignity and caregiver support'
+    ],
+    eligibility: [
+      'Resident of Andhra Pradesh with minimum 40% certified disability on SADAREM certificate',
+      'Any age group including senior citizens with physical/sensory impairment',
+      'Holding AP White Ration Card / Rice Card'
+    ],
+    eligibilityRules: {
+      minAge: 0,
+      maxAge: 100,
+      states: ['Andhra Pradesh'],
+      requiresDisability: true
+    },
+    requiredDocuments: [
+      'Aadhaar Card',
+      'SADAREM Disability Assessment Certificate (Minimum 40%)',
+      'AP Rice Card / Ration Card',
+      'Bank Account details'
+    ],
+    applicationProcess: [
+      'Obtain SADAREM assessment at Area Government Hospital',
+      'Submit pension request at Village / Ward Sachivalayam',
+      'Doorstep monthly pension disbursement starts on next 1st of month'
+    ],
+    deadline: 'Open Year Round',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://www.myscheme.gov.in/search?q=pension',
+    officialSource: 'Society for Elimination of Rural Poverty (SERP) & NSAP Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'disability pension', 'ntr bharosa', 'pwd', 'senior citizen'],
+    targetEmploymentStatuses: ['Senior Citizen']
+  },
+  {
+    id: 'ap-atal-pension-yojana',
+    name: 'Atal Pension Yojana (APY - AP State Banking Co-Contribution)',
+    slug: 'ap-atal-pension-yojana',
+    shortDescription: 'Guaranteed lifetime monthly pension of ₹1,000 to ₹5,000 per month starting at age 60 with nominee spouse pension benefits.',
+    description: 'Atal Pension Yojana (APY) provides guaranteed monthly pension of ₹1,000, ₹2,000, ₹3,000, ₹4,000, or ₹5,000 per month to unorganized workers and citizens of Andhra Pradesh upon reaching 60 years of age, administered via PFRDA and AP bank branches.',
+    category: 'Pension',
+    state: 'Andhra Pradesh',
+    governmentLevel: 'State',
+    department: 'Pension Fund Regulatory and Development Authority (PFRDA) & Ministry of Finance',
+    financialBenefitAmount: 'Guaranteed Lifetime Pension of ₹1,000 to ₹5,000 per month after age 60',
+    benefits: [
+      'Fixed monthly pension for life to the subscriber after age 60',
+      'Full continuation of monthly pension to spouse in case of subscriber demise',
+      'Return of full accumulated pension wealth to nominee after spouse demise'
+    ],
+    eligibility: [
+      'Resident of Andhra Pradesh aged between 18 and 40 years at entry',
+      'Holding active savings bank account with auto-debit facility',
+      'Non-income tax payer'
+    ],
+    eligibilityRules: {
+      minAge: 18,
+      maxAge: 40,
+      states: ['Andhra Pradesh'],
+      maxIncome: 250000
+    },
+    requiredDocuments: [
+      'Aadhaar Card',
+      'Bank Account Passbook (NPCI mapped)',
+      'Nominee Aadhaar and details'
+    ],
+    applicationProcess: [
+      'Visit your local bank branch or AP Grameena Bank or register via Net Banking',
+      'Select desired monthly pension tier (₹1,000 to ₹5,000)',
+      'Set up monthly auto-debit contribution'
+    ],
+    deadline: 'Open Year Round',
+    deadlineDate: '2026-12-31',
+    isDeadlineApproaching: false,
+    officialWebsite: 'https://www.npscra.nsdl.co.in',
+    officialSource: 'PFRDA & National Portal',
+    lastUpdated: 'August 2026',
+    tags: ['andhra pradesh', 'ap', 'atal pension', 'apy', 'senior citizen', 'pension', 'social security'],
+    targetEmploymentStatuses: ['Senior Citizen', 'Farmer', 'Business Holder']
   }
 ];

@@ -21,10 +21,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DeviceAccount } from '../types';
-
-const INDIAN_STATES = [
-  'Andhra Pradesh'
-];
+import { ALL_INDIAN_STATES } from '../data/statesAndDistricts';
 
 export const AuthModal: React.FC = () => {
   const { 
@@ -188,11 +185,8 @@ export const AuthModal: React.FC = () => {
         {/* Top Accent Header */}
         <div className="bg-emerald-800 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg">
-              🏛️
-            </div>
             <div>
-              <h3 className="font-bold text-base leading-tight">YOJANA MITRA</h3>
+              <h3 className="font-extrabold text-base leading-tight">YOJANA MITRA</h3>
               <p className="text-[10px] text-emerald-200 font-medium tracking-wide uppercase">
                 Citizen Portal Authentication
               </p>
@@ -264,15 +258,15 @@ export const AuthModal: React.FC = () => {
 
           {/* Domain Authorization Notice for Vercel Deployment */}
           {unauthorizedDomain && (
-            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-stone-800 space-y-3 animate-in fade-in duration-150">
+            <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-stone-800 space-y-3 animate-in fade-in duration-150">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <p className="font-bold text-amber-950">
+                  <p className="font-bold text-emerald-950">
                     Vercel Domain Authorization Required in Firebase
                   </p>
                   <p className="text-stone-600 leading-relaxed">
-                    Google OAuth requires <span className="font-mono font-semibold bg-amber-100 px-1 py-0.5 rounded text-amber-900">{unauthorizedDomain}</span> to be added to Authorized Domains in your Firebase Console.
+                    Google OAuth requires <span className="font-mono font-semibold bg-emerald-100 px-1 py-0.5 rounded text-emerald-900">{unauthorizedDomain}</span> to be added to Authorized Domains in your Firebase Console.
                   </p>
                 </div>
               </div>
@@ -303,7 +297,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               {/* Direct Login Fallback with custom chosen account */}
-              <div className="border-t border-amber-200/80 pt-3">
+              <div className="border-t border-emerald-200/80 pt-3">
                 <p className="text-[11px] font-bold text-stone-700 mb-2 uppercase tracking-wide">
                   Or enter your Google account to proceed immediately:
                 </p>
@@ -554,7 +548,7 @@ export const AuthModal: React.FC = () => {
                           onChange={(e) => setSelectedState(e.target.value)}
                           className="w-full text-xs pl-9 pr-3 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white focus:outline-hidden focus:border-emerald-600 font-medium"
                         >
-                          {INDIAN_STATES.map((st) => (
+                          {ALL_INDIAN_STATES.map((st) => (
                             <option key={st} value={st}>{st}</option>
                           ))}
                         </select>

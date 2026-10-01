@@ -1,22 +1,19 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { 
-  Sparkles, 
-  Bot, 
   Landmark, 
   MapPin, 
   Loader2,
-  X,
-  Eye,
-  CheckCircle2
+  RotateCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SCHEMES_DATABASE } from '../data/schemes';
 import { Scheme, UserProfile } from '../types';
-import { evaluateSchemeEligibility, matchSchemesFromAiResponse } from '../utils/recommendationEngine';
+import { evaluateSchemeEligibility, matchSchemesFromAiResponse, getRecommendedSchemes } from '../utils/recommendationEngine';
 import { AiTextResponsePanel } from './AiTextResponsePanel';
+import { ensureAbsoluteUrl } from '../utils/urlUtils';
 
 interface HomeViewProps {
-  onSelectScheme: (scheme: Scheme) => void;
+  onSelectScheme?: (scheme: Scheme) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = () => {
@@ -29,9 +26,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   } = useApp();
 
   const [stateAiReply, setStateAiReply] = useState<string>('');
-
-  // Close / Open state for State schemes panel
-  const [isStatePanelClosed, setIsStatePanelClosed] = useState<boolean>(false);
+  const [isCardClosed, setIsCardClosed] = useState<boolean>(false);
 
   // Active state is strictly derived from user's domicile (default Andhra Pradesh)
   const activeStateName = currentUser?.state || 'Andhra Pradesh';
@@ -98,13 +93,15 @@ export const HomeView: React.FC<HomeViewProps> = () => {
     return deduplicateSchemes(list);
   }, [activeStateName]);
 
-  // Eligible pool of state schemes matching user profile
+  // Eligible pool of state schemes matching user profile, sorted by gender and employment priority
   const eligibleStatePool = useMemo(() => {
     const list = allStateSchemesPool.filter(s => {
       const evalRes = evaluateSchemeEligibility(s, effectiveProfile);
       return evalRes.unmetCriteria.length === 0;
     });
-    return deduplicateSchemes(list);
+    const deduplicated = deduplicateSchemes(list);
+    const recs = getRecommendedSchemes(deduplicated, effectiveProfile);
+    return recs.map(r => r.scheme);
   }, [allStateSchemesPool, effectiveProfile]);
 
   // Immediately clear previous AI responses when user updates their profile details
@@ -116,12 +113,13 @@ export const HomeView: React.FC<HomeViewProps> = () => {
     currentUser?.updatedAt,
     currentUser?.employmentStatus,
     currentUser?.annualFamilyIncome,
+    currentUser?.gender,
     currentUser?.state
   ]);
 
   // Handle Ask AI for State Schemes
   const handleAskStateAi = async () => {
-    setIsStatePanelClosed(false);
+    setIsCardClosed(false);
     const result = await askChatbotForStateSchemes(activeStateName);
     if (result && result.reply) {
       setStateAiReply(result.reply);
@@ -131,19 +129,11 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         const evalRes = evaluateSchemeEligibility(s, effectiveProfile);
         return evalRes.unmetCriteria.length === 0;
       });
-      setStateAiSchemes(deduplicateSchemes(strictlyEligible));
+      setStateAiSchemes(deduplicateSchemes(strictlyEligible.length > 0 ? strictlyEligible : result.foundSchemes));
     } else {
       const matched = matchSchemesFromAiResponse(result.reply, eligibleStatePool, effectiveProfile);
       setStateAiSchemes(deduplicateSchemes(matched));
     }
-  };
-
-  // Handle Clear or Close for State Schemes
-  const handleClearStateSchemes = () => {
-    setIsStatePanelClosed(true);
-    setStateAiReply('');
-    setStateAiSchemes([]);
-    clearStateChatbotAnswer();
   };
 
   // Pre-computed verified text response for eligible State schemes using exact numbered format
@@ -161,13 +151,14 @@ export const HomeView: React.FC<HomeViewProps> = () => {
       const requirements = `${criteriaText}. Documents Required: ${documentsText}`;
       const suitReason = `Official initiative of Government of ${activeStateName} tailored directly for your employment status as ${effectiveProfile.employmentStatus}.`;
       const deadline = scheme.applicationDeadline || scheme.deadline || 'Check Official Portal';
-      const portalLink = scheme.applicationLink || scheme.officialWebsite || 'https://myscheme.gov.in';
+      const portalLink = ensureAbsoluteUrl(scheme.applicationLink || scheme.officialWebsite || 'https://www.myscheme.gov.in');
 
       return `${idx + 1}.
 **Scheme Name:** ${scheme.name}
-**Requirements:** ${requirements}
+**Requirements:** ${criteriaText}
+**Documents Required:** ${documentsText}
 **Why it suits you:** ${suitReason}
-**Deadline:** ${deadline}
+${scheme.financialBenefitAmount ? `**Benefits:** ${scheme.financialBenefitAmount}\n` : ''}**Deadline:** ${deadline}
 **Official Portal Link:** [Official Portal](${portalLink})`;
     }).join('\n\n');
   }, [eligibleStatePool, activeStateName, effectiveProfile.employmentStatus]);
@@ -177,38 +168,34 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // When showing schemes, ask Yojana Mitra AI Chatbot for eligible schemes
   // -------------------------------------------------------------------
   useEffect(() => {
-    if (!isStatePanelClosed && !stateChatbotAnswer && !isAskingStateSchemes) {
+    if (!stateChatbotAnswer && !isAskingStateSchemes) {
       handleAskStateAi();
     }
   }, [
     activeStateName,
-    effectiveProfile.employmentStatus
+    effectiveProfile.employmentStatus,
+    effectiveProfile.gender
   ]);
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-8 pb-16">
 
       {/* ==================================================== */}
-      {/* SECTION 1: STATE SCHEMES (YOJANA MITRA AI EVALUATED) */}
+      {/* SECTION: STATE SCHEMES (YOJANA MITRA AI EVALUATED) */}
       {/* ==================================================== */}
       <section className="space-y-4">
         
         {/* State Section Header */}
-        <div className="bg-white rounded-2xl border border-amber-200/80 p-4 sm:p-5 shadow-xs space-y-3.5">
+        <div className="bg-white rounded-2xl border border-emerald-200 p-4 sm:p-5 shadow-xs space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-amber-100 text-amber-900 shadow-2xs">
-                  <Landmark className="w-5 h-5" />
+                <span className="p-2 rounded-xl bg-emerald-100 text-emerald-900 shadow-2xs">
+                  <Landmark className="w-5 h-5 text-emerald-800" />
                 </span>
                 <div>
                   <h2 className="text-xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
                     <span>Government of {activeStateName} Schemes</span>
-                    {isStatePanelClosed && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-300">
-                        Closed
-                      </span>
-                    )}
                   </h2>
                   <p className="text-xs text-stone-600">
                     Official welfare programs and scholarships evaluated for {effectiveProfile.employmentStatus} by Yojana Mitra AI.
@@ -217,114 +204,73 @@ export const HomeView: React.FC<HomeViewProps> = () => {
               </div>
             </div>
 
-            {/* Actions: Domicile, Toggle Close/Open & Re-evaluate Action */}
+            {/* Actions: Domicile, Refresh & Re-evaluate Action */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Profile Domicile Badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-stone-100 border border-stone-200 rounded-lg text-xs">
-                <MapPin className="w-3.5 h-3.5 text-stone-500" />
-                <span className="text-stone-500 text-[11px]">Your Domicile:</span>
-                <span className="font-bold text-stone-800">{activeStateName}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 border border-emerald-200 rounded-lg text-xs">
+                <MapPin className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="text-emerald-700 text-[11px]">Your Domicile:</span>
+                <span className="font-bold text-emerald-950">{activeStateName}</span>
               </div>
 
-              {/* Close or Open Toggle Button in Header */}
-              {isStatePanelClosed ? (
-                <button
-                  onClick={() => setIsStatePanelClosed(false)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold rounded-lg border border-amber-300 transition-all cursor-pointer"
-                  title="Open State Schemes panel"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Open Panel</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleClearStateSchemes}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-red-50 text-stone-600 hover:text-red-700 text-xs font-bold rounded-lg border border-stone-200 hover:border-red-300 transition-all cursor-pointer"
-                  title="Close State Schemes panel"
-                >
-                  <X className="w-3.5 h-3.5 text-stone-400 hover:text-red-600" />
-                  <span>Close</span>
-                </button>
-              )}
-
-              {/* Ask AI / Re-evaluate Button */}
+              {/* Refresh Results Button */}
               <button
                 onClick={handleAskStateAi}
                 disabled={isAskingStateSchemes}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
-                title={`Ask Yojana Mitra AI to evaluate ${activeStateName} schemes you are eligible for`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                title={`Refresh results and re-evaluate ${activeStateName} schemes`}
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isAskingStateSchemes ? 'animate-spin text-emerald-700' : 'text-emerald-800'}`} />
+                <span>Refresh Results</span>
+              </button>
+
+              {/* Evaluate Button */}
+              <button
+                onClick={handleAskStateAi}
+                disabled={isAskingStateSchemes}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                title={`Evaluate Government of ${activeStateName} schemes you are eligible for`}
               >
                 {isAskingStateSchemes ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Bot className="w-3.5 h-3.5" />
-                )}
-                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span>{isAskingStateSchemes ? 'Evaluating with AI...' : 'Re-evaluate with AI'}</span>
+                ) : null}
+                <span>{isAskingStateSchemes ? 'Evaluating...' : 'Evaluate My schemes'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* State Schemes Display: Evaluating with AI vs Closed Panel vs Yojana Mitra AI Text Response Panel */}
+        {/* State Schemes Display: Evaluating with AI vs Yojana Mitra AI Text Response Panel */}
         {isAskingStateSchemes ? (
-          <div className="bg-amber-50/70 rounded-2xl border border-amber-200 p-8 text-center space-y-3">
-            <div className="inline-flex items-center justify-center p-3 bg-amber-100 text-amber-800 rounded-full mb-1">
-              <Bot className="w-6 h-6 animate-pulse" />
+          <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200 p-8 text-center space-y-3">
+            <div className="inline-flex items-center justify-center p-3 bg-emerald-100 text-emerald-800 rounded-full mb-1">
+              <Landmark className="w-6 h-6 text-emerald-800 animate-pulse" />
             </div>
-            <div className="flex items-center justify-center gap-2 text-sm font-bold text-amber-950">
-              <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
-              <span>Yojana Mitra AI Chatbot is evaluating Government of {activeStateName} schemes for {effectiveProfile.employmentStatus}...</span>
+            <div className="flex items-center justify-center gap-2 text-sm font-bold text-emerald-950">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+              <span>Yojana Mitra is evaluating Government of {activeStateName} schemes for {effectiveProfile.employmentStatus}...</span>
             </div>
             <p className="text-xs text-stone-600 max-w-md mx-auto">
               Reviewing verified state welfare schemes tailored strictly for your employment status as a {effectiveProfile.employmentStatus}.
             </p>
           </div>
-        ) : isStatePanelClosed ? (
-          /* Sleek, interactive closed state when user clicks Close */
-          <div className="bg-amber-50/40 rounded-2xl border border-amber-200/80 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-                <Landmark className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                  <span>Government of {activeStateName} Schemes Panel (Closed)</span>
-                </h4>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  This section has been closed. Click below to view active {activeStateName} schemes for {effectiveProfile.employmentStatus} or re-evaluate with AI.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setIsStatePanelClosed(false)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-amber-50 text-amber-950 text-xs font-bold rounded-lg border border-amber-300 shadow-2xs transition-all cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Open State Schemes</span>
-              </button>
-              <button
-                onClick={handleAskStateAi}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Re-evaluate with AI</span>
-              </button>
-            </div>
-          </div>
         ) : (
-          <AiTextResponsePanel
-            title={`Government of ${activeStateName} Schemes & Scholarships`}
-            subtitle={`Official welfare initiatives evaluated for ${effectiveProfile.employmentStatus} by Yojana Mitra AI Chatbot`}
-            response={stateChatbotAnswer?.text || stateAiReply || defaultStateResponse}
-            timestamp={stateChatbotAnswer?.timestamp}
-            theme="amber"
-            stateName={activeStateName}
-            relevantSchemes={stateAiSchemes.length > 0 ? stateAiSchemes : eligibleStatePool}
-            discussPrompt={`Tell me more about active state welfare schemes and scholarships in ${activeStateName} for ${effectiveProfile.employmentStatus} that I am eligible for.`}
-            onClear={handleClearStateSchemes}
-          />
+          !isCardClosed && (
+            <AiTextResponsePanel
+              title={`Government of ${activeStateName} Schemes & Scholarships`}
+              subtitle={`Official welfare initiatives evaluated for ${effectiveProfile.employmentStatus} by Yojana Mitra AI`}
+              response={stateChatbotAnswer?.text || stateAiReply || defaultStateResponse}
+              timestamp={stateChatbotAnswer?.timestamp}
+              theme="emerald"
+              stateName={activeStateName}
+              relevantSchemes={stateAiSchemes.length > 0 ? stateAiSchemes : eligibleStatePool}
+              onClose={() => {
+                clearStateChatbotAnswer();
+                setIsCardClosed(true);
+              }}
+              discussPrompt={`Tell me more about active state welfare schemes and scholarships in ${activeStateName} for ${effectiveProfile.employmentStatus} that I am eligible for.`}
+            />
+          )
         )}
       </section>
 
