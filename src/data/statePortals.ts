@@ -34,11 +34,11 @@ export const STATE_OFFICIAL_PORTALS: Record<string, OfficialPortalInfo[]> = {
       targetSchemes: ['nsp', 'central scholarship', 'post-matric scholarship', 'aicte pragati']
     },
     {
-      name: 'PM-JAY National Health Portal (Ayushman Bharat / NTR Vaidya Seva)',
-      url: 'https://pmjay.gov.in',
-      domain: 'pmjay.gov.in',
+      name: 'Dr. NTR Vaidya Seva Official Healthcare Portal',
+      url: 'https://drntrvaidyaseva.ap.gov.in/',
+      domain: 'drntrvaidyaseva.ap.gov.in',
       category: 'Universal Health Coverage & Hospitalization',
-      description: 'Official cashless medical treatment portal covering comprehensive health and surgical procedures up to ₹25 Lakhs in empanelled network hospitals.',
+      description: 'Official Government of AP portal for Dr. NTR Vaidya Seva cashless medical treatment covering comprehensive health and surgical procedures up to ₹25 Lakhs.',
       targetSchemes: ['ntr vaidya seva', 'aarogyasri', 'health cover', 'cashless hospital', 'geriatric']
     },
     {
@@ -58,12 +58,20 @@ export const STATE_OFFICIAL_PORTALS: Record<string, OfficialPortalInfo[]> = {
       targetSchemes: ['apssdc', 'yuva galam', 'skill development', 'youth employment', 'unemployment']
     },
     {
-      name: 'National Social Assistance Programme (NSAP)',
-      url: 'https://nsap.gov.in',
-      domain: 'nsap.gov.in',
+      name: 'AP Social Security Pensions (SSPensions) Portal',
+      url: 'https://sspensions.ap.gov.in/',
+      domain: 'sspensions.ap.gov.in',
       category: 'Pensions & Social Security',
-      description: 'Official social security portal for old-age pensions, disability support, and widow welfare grants.',
-      targetSchemes: ['ntr bharosa', 'pension', 'senior citizen', 'ignoaps']
+      description: 'Official Government of AP portal for NTR Bharosa monthly old age, widow, and disability pensions.',
+      targetSchemes: ['ntr bharosa', 'pension', 'senior citizen', 'ignoaps', 'sspensions']
+    },
+    {
+      name: 'AP Differently Abled and Senior Citizens Assistance Corporation (APDASCAC)',
+      url: 'https://apdascac.ap.gov.in/',
+      domain: 'apdascac.ap.gov.in',
+      category: 'Senior Citizen Assistive Devices & Welfare',
+      description: 'Official Government of AP portal for Vayo Vandana assistive devices, walking aids, hearing aids, wheelchairs, and senior citizen welfare grants.',
+      targetSchemes: ['vayo vandana', 'assistive devices', 'senior citizen', 'wheelchair', 'hearing aid', 'apdascac']
     },
     {
       name: 'APSRTC Official Transport & Concession Portal',
@@ -72,6 +80,30 @@ export const STATE_OFFICIAL_PORTALS: Record<string, OfficialPortalInfo[]> = {
       category: 'Public Transport & Student/Women Bus Concessions',
       description: 'Official Government of AP portal for Maha Shakti Free RTC Bus Travel for women, student bus passes, and senior citizen travel concessions.',
       targetSchemes: ['apsrtc', 'aprtc', 'maha shakti', 'bus travel', 'free bus', 'bus concession']
+    },
+    {
+      name: 'India Post Savings & Small Schemes Portal',
+      url: 'https://www.indiapost.gov.in/banking-services/savings',
+      domain: 'indiapost.gov.in',
+      category: 'Small Savings, Post Office Accounts & Sukanya Samriddhi',
+      description: 'Official Department of Posts portal for Sukanya Samriddhi Yojana, Post Office Savings, Mahila Samman Savings, and Senior Citizen Savings Accounts.',
+      targetSchemes: ['sukanya samriddhi', 'post office', 'indiapost', 'savings', 'ssy']
+    },
+    {
+      name: 'AICTE Scholarship Schemes Portal',
+      url: 'https://www.aicte.gov.in/schemes/scholarship-schemes',
+      domain: 'aicte.gov.in',
+      category: 'AICTE Technical Scholarships & Fellowships',
+      description: 'Official AICTE portal for Pragati Scholarship for Girl Students, Saksham Scholarship for Differently Abled, and Technical Degree/Diploma grants.',
+      targetSchemes: ['aicte', 'pragati', 'aicte pragati', 'technical scholarship']
+    },
+    {
+      name: 'AP Stree Nidhi Credit Cooperative Federation Portal',
+      url: 'https://www.sthreenidhi.ap.gov.in/SNBank/UI/Home.aspx',
+      domain: 'sthreenidhi.ap.gov.in',
+      category: 'Women Micro-credit, Cheyutha & Livelihood Finance',
+      description: 'Official Government of AP portal for Stree Nidhi credit cooperative bank, Cheyutha livelihood loans, DWCRA women enterprise credit, and SHG financial empowerment.',
+      targetSchemes: ['cheyutha', 'stree nidhi', 'sthreenidhi', 'dwcra', 'women livelihood']
     }
   ]
 };

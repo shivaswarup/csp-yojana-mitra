@@ -10,16 +10,16 @@ export const ensureAbsoluteUrl = (rawUrl?: string): string => {
 
   // Fix common outdated/decommissioned state government subdomains that time out or fail SSL
   if (url.includes('apecs.ap.gov.in') || url.includes('apecs')) {
-    return 'https://epdsap.ap.gov.in';
+    return 'https://civilsupplies.ap.gov.in/homepage.jsp';
   }
-  if (url.includes('nsap.gov.in') || url.includes('nsap.nic.in') || url.includes('sspensions.ap.gov.in')) {
-    return 'https://www.myscheme.gov.in/search?q=pension';
+  if (url.includes('nsap.gov.in') || url.includes('nsap.nic.in') || url.includes('sspensions.ap.gov.in') || url.includes('gramawardsachivalayam.ap.gov.in')) {
+    return 'https://sspensions.ap.gov.in/';
   }
   if (url.includes('meeseva.ap.gov.in') || url.includes('meeseva')) {
     return 'https://www.myscheme.gov.in';
   }
-  if (url.includes('cheyutha.ap.gov.in') || url.includes('cheyutha')) {
-    return 'https://www.myscheme.gov.in/search?q=cheyutha';
+  if (url.includes('cheyutha.ap.gov.in') || url.includes('cheyutha') || url.includes('sthreenidhi')) {
+    return 'https://www.sthreenidhi.ap.gov.in/SNBank/UI/Home.aspx';
   }
   if (url.includes('aprtc.ap.gov.in') || url.includes('aprtc')) {
     return 'https://apsrtc.ap.gov.in';
@@ -27,20 +27,35 @@ export const ensureAbsoluteUrl = (rawUrl?: string): string => {
   if (url.includes('apagrisnet.gov.in') || url.includes('rythubharosa.ap.gov.in')) {
     return 'https://pmkisan.gov.in';
   }
-  if (url.includes('aarogyasri.ap.gov.in') || url.includes('vaidyaseva.ap.gov.in')) {
-    return 'https://pmjay.gov.in';
+  if (url.includes('aarogyasri.ap.gov.in') || url.includes('vaidyaseva.ap.gov.in') || url.includes('drntrvaidyaseva.ap.gov.in')) {
+    return 'https://drntrvaidyaseva.ap.gov.in/';
   }
-  if (url.includes('navasakam2.apcfss.in') || url.includes('navasakam.ap.gov.in') || url.includes('apcfss.in')) {
-    return 'https://www.myscheme.gov.in';
+  if (url.includes('navasakam2.apcfss.in') || url.includes('navasakam.ap.gov.in') || url.includes('navasakam')) {
+    return 'https://navasakamportal.com/';
   }
   if (url.includes('spandana.ap.gov.in')) {
-    return 'https://epdsap.ap.gov.in';
+    return 'https://civilsupplies.ap.gov.in/homepage.jsp';
   }
   if (url.includes('jnanabhumi.ap.gov.in') || url.includes('jnanabhumi')) {
     return 'https://jnanabhumi.ap.gov.in/';
   }
-  if (url.includes('ammatodi.ap.gov.in')) {
-    return 'https://jnanabhumi.ap.gov.in/';
+  if (url.includes('npscra.nsdl.co.in') || url.includes('nps-proteantech.in')) {
+    return 'https://enps.nps-proteantech.in/eNPS/ApySubRegistration.html';
+  }
+  if (url.includes('apdascac.ap.gov.in') || url.includes('apdascac')) {
+    return 'https://apdascac.ap.gov.in/';
+  }
+  if (url.includes('aadabidda') || url.includes('aadabiddanidhi.ap.gov.in')) {
+    return 'https://www.myscheme.gov.in/search?q=aadabidda';
+  }
+  if (url.includes('shaaditohfa') || url.includes('navasakamportal.com') || url.includes('kalyanamasthu')) {
+    return 'https://navasakamportal.com/';
+  }
+  if (url.includes('indiapost.gov.in') || url.includes('indiapost') || url.includes('sukanya')) {
+    return 'https://www.indiapost.gov.in/banking-services/savings';
+  }
+  if (url.includes('aicte.gov.in') || url.includes('aicte') || url.includes('pragati-scholarship')) {
+    return 'https://www.aicte.gov.in/schemes/scholarship-schemes';
   }
 
   // If scheme name/domain is passed without protocol, prepend https://
@@ -56,17 +71,17 @@ export const normalizeGovernmentUrl = (rawUrl: string): { activeUrl: string; dis
 
   if (rawUrl.includes('apecs.ap.gov.in') || rawUrl.includes('apecs')) {
     return {
-      activeUrl: 'https://epdsap.ap.gov.in',
-      displayLabel: 'epdsap.ap.gov.in (AP Consumer & Civil Supplies Portal)',
+      activeUrl: 'https://civilsupplies.ap.gov.in/homepage.jsp',
+      displayLabel: 'civilsupplies.ap.gov.in (AP Civil Supplies Official Portal)',
       mirrorUrl: 'https://www.myscheme.gov.in'
     };
   }
 
-  if (rawUrl.includes('nsap.gov.in') || rawUrl.includes('nsap.nic.in') || rawUrl.includes('sspensions.ap.gov.in')) {
+  if (rawUrl.includes('nsap.gov.in') || rawUrl.includes('nsap.nic.in') || rawUrl.includes('sspensions.ap.gov.in') || rawUrl.includes('gramawardsachivalayam.ap.gov.in')) {
     return {
-      activeUrl: 'https://www.myscheme.gov.in/search?q=pension',
-      displayLabel: 'myscheme.gov.in (National & State Pension Portal)',
-      mirrorUrl: 'https://epdsap.ap.gov.in'
+      activeUrl: 'https://sspensions.ap.gov.in/',
+      displayLabel: 'sspensions.ap.gov.in (AP Social Security Pensions Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=pension'
     };
   }
 
@@ -74,15 +89,15 @@ export const normalizeGovernmentUrl = (rawUrl: string): { activeUrl: string; dis
     return {
       activeUrl: 'https://www.myscheme.gov.in',
       displayLabel: 'myscheme.gov.in (National & AP Welfare Gateway)',
-      mirrorUrl: 'https://epdsap.ap.gov.in'
+      mirrorUrl: 'https://civilsupplies.ap.gov.in/homepage.jsp'
     };
   }
 
-  if (rawUrl.includes('cheyutha.ap.gov.in') || rawUrl.includes('cheyutha')) {
+  if (rawUrl.includes('cheyutha.ap.gov.in') || rawUrl.includes('cheyutha') || activeUrl.includes('sthreenidhi')) {
     return {
-      activeUrl: 'https://www.myscheme.gov.in/search?q=cheyutha',
-      displayLabel: 'myscheme.gov.in (AP Cheyutha Portal)',
-      mirrorUrl: 'https://epdsap.ap.gov.in'
+      activeUrl: 'https://www.sthreenidhi.ap.gov.in/SNBank/UI/Home.aspx',
+      displayLabel: 'sthreenidhi.ap.gov.in (AP Stree Nidhi Credit Cooperative Federation)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=cheyutha'
     };
   }
 
@@ -102,11 +117,63 @@ export const normalizeGovernmentUrl = (rawUrl: string): { activeUrl: string; dis
     };
   }
 
+  if (activeUrl.includes('drntrvaidyaseva.ap.gov.in')) {
+    return {
+      activeUrl: 'https://drntrvaidyaseva.ap.gov.in/',
+      displayLabel: 'drntrvaidyaseva.ap.gov.in (Dr. NTR Vaidya Seva Portal)',
+      mirrorUrl: 'https://pmjay.gov.in'
+    };
+  }
   if (activeUrl.includes('pmjay.gov.in')) {
     return {
       activeUrl: 'https://pmjay.gov.in',
       displayLabel: 'pmjay.gov.in (Ayushman Bharat / PM-JAY)',
       mirrorUrl: 'https://www.myscheme.gov.in/search?q=ayushman'
+    };
+  }
+
+  if (activeUrl.includes('indiapost.gov.in') || activeUrl.includes('indiapost') || rawUrl.includes('sukanya')) {
+    return {
+      activeUrl: 'https://www.indiapost.gov.in/banking-services/savings',
+      displayLabel: 'indiapost.gov.in (India Post Savings & Small Schemes Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=post+office'
+    };
+  }
+
+  if (activeUrl.includes('shaaditohfa') || activeUrl.includes('navasakamportal.com') || rawUrl.includes('kalyanamasthu')) {
+    return {
+      activeUrl: 'https://navasakamportal.com/',
+      displayLabel: 'navasakamportal.com (Navasakam & Kalyana Masthu Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=kalyana+masthu'
+    };
+  }
+  if (activeUrl.includes('aadabidda') || rawUrl.includes('aadabiddanidhi.ap.gov.in')) {
+    return {
+      activeUrl: 'https://www.myscheme.gov.in/search?q=aadabidda',
+      displayLabel: 'myscheme.gov.in (Aadabidda Nidhi Scheme Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in'
+    };
+  }
+  if (activeUrl.includes('apdascac.ap.gov.in') || activeUrl.includes('apdascac')) {
+    return {
+      activeUrl: 'https://apdascac.ap.gov.in/',
+      displayLabel: 'apdascac.ap.gov.in (AP Differently Abled & Senior Citizens Corporation)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=vayo+vandana'
+    };
+  }
+  if (activeUrl.includes('npscra.nsdl.co.in') || activeUrl.includes('nps-proteantech.in')) {
+    return {
+      activeUrl: 'https://enps.nps-proteantech.in/eNPS/ApySubRegistration.html',
+      displayLabel: 'enps.nps-proteantech.in (Atal Pension Yojana Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=atal+pension'
+    };
+  }
+
+  if (activeUrl.includes('aicte.gov.in') || activeUrl.includes('aicte') || rawUrl.includes('pragati')) {
+    return {
+      activeUrl: 'https://www.aicte.gov.in/schemes/scholarship-schemes',
+      displayLabel: 'aicte.gov.in (AICTE Official Scholarship Schemes Portal)',
+      mirrorUrl: 'https://www.myscheme.gov.in/search?q=aicte'
     };
   }
 

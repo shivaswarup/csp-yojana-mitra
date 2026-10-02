@@ -127,14 +127,14 @@ export default async function handler(req, res) {
 **అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 సంవత్సరాలు నిండిన వృద్ధులు, వార్షిక కుటుంబ ఆదాయం ₹1.44 లక్షల లోపు (గ్రామీణ) / ₹1.20 లక్షల లోపు (పట్టణ). పత్రాలు: ఆధార్ కార్డు (వయస్సు నిర్ధారణ 60+), ఏపీ రైస్ కార్డ్ (తెల్ల రేషన్ కార్డు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** నెలకు ₹4,000 వృద్ధాప్య పింఛను ప్రతి నెలా 1వ తేదీన నేరుగా గ్రామ/వార్డు సచివాలయాల ద్వారా మీ ఇంటి వద్దే నగదు రూపంలో అందజేయబడుతుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [National Social Assistance Portal](https://nsap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [National Social Assistance Portal](https://sspensions.ap.gov.in/)
 
 2.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ వయోవృద్ధుల ఆరోగ్య భద్రత (Dr. NTR Vaidya Seva Geriatric Healthcare)
 **అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60+ ఏళ్ల వృద్ధులు, వార్షిక ఆదాయం ₹5 లక్షల లోపు. పత్రాలు: ఆధార్ కార్డు, ఎన్టీఆర్ వైద్య సేవ హెల్త్ కార్డు / రైస్ కార్డ్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మోకాలి మార్పిడి, గుండె చికిత్సలు, క్యాన్సర్ సహా 3,257 శస్త్రచికిత్సలకు ₹25 లక్షల వరకు పూర్తి నగదు రహిత ఆసుపత్రి చికిత్స మరియు విశ్రాంతి సమయంలో నెలకు ₹5,000 ఆరోగ్య ఆసరా లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [Dr. NTR Vaidya Seva](https://pmjay.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [Dr. NTR Vaidya Seva](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వయో వందన సహాయ పరికరాల పథకం (AP Vayo Vandana Scheme)
@@ -192,7 +192,7 @@ export default async function handler(req, res) {
 **అర్హతలు & అవసరమైన పత్రాలు (Requirements):** వివాహం చేసుకునే పేద కుటుంబాల ఆడపిల్లలు (18+ సం.), 10వ తరగతి ఉత్తీర్ణత. పత్రాలు: 10వ తరగతి సర్టిఫికెట్, ఆధార్ కార్డు, పెళ్లి కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఆడపిల్లల గౌరవప్రదమైన వివాహం కోసం ₹1,00,000 వరకు నేరుగా వధువు తల్లి ఖాతాలో జమ చేయబడుతుంది.
 **గడువు తేదీ (Deadline):** వివాహం జరిగిన 60 రోజుల్లోపు (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నవశకం కళ్యాణ మస్తు](https://navasakam.ap.gov.in)`;
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నవశకం కళ్యాణ మస్తు](https://navasakamportal.com/)`;
         } else if (studentKeywords) {
           defaultReply = `మీ ప్రొఫైల్ వివరాల ఆధారంగా విద్యార్థుల కోసం ధృవీకరించబడిన రాష్ట్ర ప్రభుత్వ సంక్షేమ పథకాలు & స్కాలర్‌షిప్‌లు క్రింద వివరించబడ్డాయి:
 
@@ -224,7 +224,7 @@ export default async function handler(req, res) {
 **అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ నివాసితులు, వార్షిక కుటుంబ ఆదాయం ₹5 లక్షల లోపు లేదా తెల్ల రేషన్ కార్డు కలిగి ఉండాలి. పత్రాలు: ఆధార్ కార్డు, రైస్ కార్డ్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి కుటుంబానికి సంవత్సరానికి ₹25 లక్షల వరకు పూర్తి నగదు రహిత ఆసుపత్రి చికిత్స లభిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఎన్టీఆర్ వైద్య సేవ పోర్టల్](https://pmjay.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఎన్టీఆర్ వైద్య సేవ పోర్టల్](https://drntrvaidyaseva.ap.gov.in/)
 
 2.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ అన్నదాత సుఖీభవ రైతు పథకం (Annadata Sukhibhava)
@@ -242,14 +242,14 @@ export default async function handler(req, res) {
 **Requirements:** Permanent resident of AP aged 60 years or older, Annual family income under ₹1.44 Lakh. Documents: Aadhaar Card (age proof 60+), AP Rice Card / White Ration Card, Bank Passbook.
 **Why it suits you:** Provides a dedicated monthly old age pension of ₹4,000 delivered directly at your doorstep on the 1st of every month without waiting in long queues.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [National Social Assistance Portal](https://nsap.gov.in)
+**Official Portal Link:** [National Social Assistance Portal](https://sspensions.ap.gov.in/)
 
 2.
 **Scheme Name:** Dr. NTR Vaidya Seva Geriatric & Senior Citizen Healthcare Support
 **Requirements:** Senior citizen aged 60+ resident of AP, Family income under ₹5 Lakhs. Documents: Aadhaar Card, NTR Vaidya Seva Card / Rice Card.
 **Why it suits you:** Full 100% cashless hospitalization up to ₹25,00,000 covering major senior procedures (cardiac, knee/hip replacement, cancer) plus ₹5,000/month post-op recovery allowance.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Dr. NTR Vaidya Seva](https://pmjay.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **Scheme Name:** Andhra Pradesh Vayo Vandana Senior Citizen Assistive Devices Scheme
@@ -339,7 +339,7 @@ export default async function handler(req, res) {
 **Requirements:** Resident of Andhra Pradesh with White Ration Card / BPL card or family income under ₹5 Lakh. Documents: Aadhaar Card, Rice Card.
 **Why it suits you:** Covers cashless secondary and tertiary medical treatments up to ₹25 Lakh across 3,257 procedures statewide.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva Portal](https://pmjay.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva Portal](https://drntrvaidyaseva.ap.gov.in/)
 
 2.
 **Scheme Name:** Andhra Pradesh Annadata Sukhibhava Farmer Investment Support
@@ -450,8 +450,8 @@ RULES:
     let fallbackText = '';
     if (isSenior) {
       fallbackText = isTeluguRequested
-        ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా సీనియర్ సిటిజన్ల (Senior Citizens 60+) కోసం ప్రముఖ ప్రభుత్వ పథకాలు:\n\n1.\n**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ ఎన్టీఆర్ భరోసా వృద్ధాప్య పింఛను పథకం (AP NTR Bharosa Senior Citizen Pension)\n**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 ఏళ్లు నిండిన వృద్ధులు, తెల్ల రేషన్ కార్డు. పత్రాలు: ఆధార్ కార్డు, రైస్ కార్డ్, బ్యాంక్ ఖాతా.\n**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** నెలకు ₹4,000 వృద్ధాప్య పింఛను ప్రతి నెలా 1వ తేదీన నేరుగా ఇంటి వద్దే అందుతుంది.\n**గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)\n**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [National Social Assistance Portal](https://nsap.gov.in)`
-        : `Here are verified active government schemes for Senior Citizens (60+ years):\n\n1.\n**Scheme Name:** Andhra Pradesh NTR Bharosa Senior Citizen Pension Scheme (Old Age Pension)\n**Requirements:** Resident of AP aged 60+ years, White Ration Card holder. Documents: Aadhaar Card, Rice Card, Bank Passbook.\n**Why it suits you:** Dedicated monthly pension of ₹4,000 delivered directly to your doorstep on the 1st of every month.\n**Deadline:** Continuous Enrollment (Check Official Portal)\n**Official Portal Link:** [National Social Assistance Portal](https://nsap.gov.in)`;
+        ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా సీనియర్ సిటిజన్ల (Senior Citizens 60+) కోసం ప్రముఖ ప్రభుత్వ పథకాలు:\n\n1.\n**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ ఎన్టీఆర్ భరోసా వృద్ధాప్య పింఛను పథకం (AP NTR Bharosa Senior Citizen Pension)\n**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** 60 ఏళ్లు నిండిన వృద్ధులు, తెల్ల రేషన్ కార్డు. పత్రాలు: ఆధార్ కార్డు, రైస్ కార్డ్, బ్యాంక్ ఖాతా.\n**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** నెలకు ₹4,000 వృద్ధాప్య పింఛను ప్రతి నెలా 1వ తేదీన నేరుగా ఇంటి వద్దే అందుతుంది.\n**గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)\n**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [National Social Assistance Portal](https://sspensions.ap.gov.in/)`
+        : `Here are verified active government schemes for Senior Citizens (60+ years):\n\n1.\n**Scheme Name:** Andhra Pradesh NTR Bharosa Senior Citizen Pension Scheme (Old Age Pension)\n**Requirements:** Resident of AP aged 60+ years, White Ration Card holder. Documents: Aadhaar Card, Rice Card, Bank Passbook.\n**Why it suits you:** Dedicated monthly pension of ₹4,000 delivered directly to your doorstep on the 1st of every month.\n**Deadline:** Continuous Enrollment (Check Official Portal)\n**Official Portal Link:** [National Social Assistance Portal](https://sspensions.ap.gov.in/)`;
     } else if (isWoman) {
       fallbackText = isTeluguRequested
         ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా మహిళల (Women) కోసం ప్రముఖ ప్రభుత్వ పథకాలు:\n\n1.\n**పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ మహా శక్తి ఉచిత ఆర్టీసీ బస్సు ప్రయాణ పథకం (AP Maha Shakti Free Bus Travel for Women)\n**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఆంధ్రప్రదేశ్ నివాసితులైన బాలికలు మరియు మహిళలందరూ. పత్రాలు: ఆధార్ కార్డు లేదా గుర్తింపు కార్డు.\n**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఏపీఎస్ ఆర్టీసీ పల్లె వెలుగు, ఎక్స్‌ప్రెస్ బస్సులలో రాష్ట్రవ్యాప్తంగా 100% ఉచితంగా ప్రయాణించవచ్చు.\n**గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)\n**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [APSRTC Official Portal](https://apsrtc.ap.gov.in)`
@@ -462,8 +462,8 @@ RULES:
         : `Here are active State Government schemes and scholarships matching your query:\n\n1.\n**Scheme Name:** Andhra Pradesh Vidya Deevena (Full Tuition Fee Reimbursement)\n**Requirements:** Regular students admitted to ITI, Polytechnic, Degree, Engineering, or PG courses in AP, Annual family income under ₹2.5 Lakh. Documents: Aadhaar Card, Income Certificate / White Ration Card, College Bonafide, Mother's Bank Account.\n**Why it suits you:** Full 100% college tuition fee paid directly into the student's mother's bank account in quarterly installments.\n**Deadline:** Check Official Portal\n**Official Portal Link:** [AP JnanaBhumi Portal](https://jnanabhumi.ap.gov.in)`;
     } else {
       fallbackText = isTeluguRequested
-        ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా ధృవీకరించబడిన ప్రముఖ రాష్ట్ర ప్రభుత్వ సంక్షేమ పథకాలు:\n\n1.\n**పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ఆరోగ్య భద్రత పథకం (Dr. NTR Vaidya Seva)\n**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఏపీ నివాసితులు, వార్షిక కుటుంబ ఆదాయం ₹5 లక్షల లోపు లేదా రైస్ కార్డ్. పత్రాలు: ఆధార్ కార్డు, రేషన్ కార్డు.\n**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి కుటుంబానికి సంవత్సరానికి ₹25 లక్షల వరకు పూర్తి నగదు రహిత ఆసుపత్రి చికిత్స లభిస్తుంది.\n**గడువు తేదీ (Deadline):** Check Official Portal\n**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఎన్టీఆర్ వైద్య సేవ పోర్టల్](https://pmjay.gov.in)`
-        : `Here are active State Government welfare schemes matching your profile:\n\n1.\n**Scheme Name:** Dr. NTR Vaidya Seva Cashless Universal Healthcare Scheme\n**Requirements:** Resident of Andhra Pradesh with White Ration Card / BPL card or family income under ₹5 Lakh. Documents: Aadhaar Card, Rice Card.\n**Why it suits you:** 100% cashless medical treatments up to ₹25 Lakh across 3,257 procedures statewide.\n**Deadline:** Continuous Enrollment (Check Official Portal)\n**Official Portal Link:** [Dr. NTR Vaidya Seva Portal](https://pmjay.gov.in)`;
+        ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా ధృవీకరించబడిన ప్రముఖ రాష్ట్ర ప్రభుత్వ సంక్షేమ పథకాలు:\n\n1.\n**పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ ఆరోగ్య భద్రత పథకం (Dr. NTR Vaidya Seva)\n**అర్హతలు & అవసరమైన పత్రాలు (Requirements):** ఏపీ నివాసితులు, వార్షిక కుటుంబ ఆదాయం ₹5 లక్షల లోపు లేదా రైస్ కార్డ్. పత్రాలు: ఆధార్ కార్డు, రేషన్ కార్డు.\n**మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి కుటుంబానికి సంవత్సరానికి ₹25 లక్షల వరకు పూర్తి నగదు రహిత ఆసుపత్రి చికిత్స లభిస్తుంది.\n**గడువు తేదీ (Deadline):** Check Official Portal\n**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఎన్టీఆర్ వైద్య సేవ పోర్టల్](https://drntrvaidyaseva.ap.gov.in/)`
+        : `Here are active State Government welfare schemes matching your profile:\n\n1.\n**Scheme Name:** Dr. NTR Vaidya Seva Cashless Universal Healthcare Scheme\n**Requirements:** Resident of Andhra Pradesh with White Ration Card / BPL card or family income under ₹5 Lakh. Documents: Aadhaar Card, Rice Card.\n**Why it suits you:** 100% cashless medical treatments up to ₹25 Lakh across 3,257 procedures statewide.\n**Deadline:** Continuous Enrollment (Check Official Portal)\n**Official Portal Link:** [Dr. NTR Vaidya Seva Portal](https://drntrvaidyaseva.ap.gov.in/)`;
     }
 
     return res.status(200).json({ reply: fallbackText });

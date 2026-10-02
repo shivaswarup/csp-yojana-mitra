@@ -312,7 +312,7 @@ How can I assist you today? You can ask me about:
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు (వయస్సు నిర్ధారణ 60+), ఏపీ రైస్ కార్డ్ (తెల్ల రేషన్ కార్డు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** నెలకు ₹4,000 వృద్ధాప్య పింఛను ప్రతి నెలా 1వ తేదీన నేరుగా గ్రామ/వార్డు సచివాలయాల ద్వారా మీ ఇంటి వద్దే నగదు రూపంలో అందజేయబడుతుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ సోషల్ అసిస్టెన్స్ పోర్టల్](https://nsap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ సోషల్ అసిస్టెన్స్ పోర్టల్](https://sspensions.ap.gov.in/)
 
 2.
 **పథకం పేరు (Scheme Name):** డాక్టర్ ఎన్టీఆర్ వైద్య సేవ వయోవృద్ధుల ఆరోగ్య భద్రత (Dr. NTR Vaidya Seva Geriatric Healthcare)
@@ -320,7 +320,7 @@ How can I assist you today? You can ask me about:
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఎన్టీఆర్ వైద్య సేవ హెల్త్ కార్డు / రైస్ కార్డ్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** మోకాలి/తుంటి మార్పిడి, గుండె చికిత్సలు, క్యాన్సర్ సహా 3,257 శస్త్రచికిత్సలకు ₹25 లక్షల వరకు 100% ఉచిత నగదు రహిత ఆసుపత్రి చికిత్స మరియు విశ్రాంతి సమయంలో నెలకు ₹5,000 ఆరోగ్య ఆసరా లభిస్తుంది.
 **గడువు తేదీ (Deadline):** Open Year Round
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ వయో వందన సీనియర్ సిటిజన్ సహాయ పరికరాల పథకం (AP Vayo Vandana Scheme)
@@ -353,7 +353,7 @@ How can I assist you today? You can ask me about:
 **Document Requirements:** Aadhaar Card (age proof 60+), AP Rice Card, Aadhaar DBT-seeded Bank Passbook.
 **Why it suits you:** Delivers a monthly old age pension of ₹4,000 directly at your doorstep on the 1st of every single month through village/ward secretariats without standing in bank lines.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [National Social Assistance Programme](https://nsap.gov.in)
+**Official Portal Link:** [National Social Assistance Programme](https://sspensions.ap.gov.in/)
 
 2.
 **Scheme Name:** Dr. NTR Vaidya Seva Geriatric & Senior Citizen Healthcare Support
@@ -361,7 +361,7 @@ How can I assist you today? You can ask me about:
 **Document Requirements:** Aadhaar Card, NTR Vaidya Seva Health Card / Rice Card.
 **Why it suits you:** Full 100% cashless hospitalization up to ₹25,00,000 across empaneled hospitals covering geriatric conditions (cardiac, knee/hip joint replacement, cancer, oncology) plus ₹5,000/month post-operative recovery allowance.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **Scheme Name:** Andhra Pradesh Vayo Vandana Senior Citizen Assistive Devices Scheme
@@ -412,7 +412,7 @@ How can I assist you today? You can ask me about:
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డ్, గ్యాస్ కనెక్షన్ పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ప్రతి సంవత్సరం 3 గృహ వంట గ్యాస్ సిలిండర్లను 100% ఉచితంగా డీబీటీ రీయింబర్స్‌మెంట్ ద్వారా అందిస్తుంది (డెలివరీ అయిన 48 గంటల్లో ఖాతాలో నగదు జమ).
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Open Year Round)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://civilsupplies.ap.gov.in/homepage.jsp)
 
 4.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ సున్నా వడ్డీ డ్వాక్రా రుణాల పథకం (AP Sunna Vaddi DWCRA Loans)
@@ -461,7 +461,7 @@ How can I assist you today? You can ask me about:
 **Document Requirements:** Aadhaar Card, Rice Card, LPG Consumer Connection Passbook.
 **Why it suits you:** Grants 3 free domestic cooking gas cylinder refills per year with 100% DBT subsidy reimbursed directly into your bank account within 48 hours of delivery.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)
+**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://civilsupplies.ap.gov.in/homepage.jsp)
 
 4.
 **Scheme Name:** Andhra Pradesh Sunna Vaddi (Zero Interest DWCRA Loans)
@@ -498,7 +498,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** బాలిక ఆధార్ కార్డు, 10వ & 12వ / ఎంట్రన్స్ ర్యాంక్ కార్డు, కాలేజీ అలాట్‌మెంట్ ఆర్డర్ & ఫీజు రసీదు, ఆదాయ పత్రం (₹8 లక్షల లోపు), ఆధార్ అనుసంధానిత బ్యాంకు ఖాతా పాస్‌బుక్.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఇంజనీరింగ్ 4 సంవత్సరాలు లేదా డిప్లొమా 3 సంవత్సరాల పాటు ప్రతి సంవత్సరం ₹50,000 (మొత్తం ₹2,00,000 వరకు) ప్రత్యక్ష నగదు సహాయం లభిస్తుంది.
 **గడువు తేదీ (Deadline):** 31 December 2026
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [నేషనల్ స్కాలర్‌షిప్ పోర్టల్](https://scholarships.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఏఐసీటీఈ స్కాలర్‌షిప్ పోర్టల్](https://www.aicte.gov.in/schemes/scholarship-schemes)
 
 2.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ విద్యా దీవెన - పూర్తి ఫీజు రీయింబర్స్‌మెంట్ (Andhra Pradesh Vidya Deevena)
@@ -544,7 +544,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కుటుంబానికి ప్రతి సంవత్సరం ₹25 లక్షల వరకు అధునాతన నెట్‌వర్క్ ఆసుపత్రులలో పూర్తి ఉచిత నగదు రహిత ఆరోగ్య చికిత్సను ప్రభుత్వం అందిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)`}`
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://drntrvaidyaseva.ap.gov.in/)`}`
         : `Here are verified active Government of Andhra Pradesh state welfare schemes matching your student credentials:
 
 ${isFemaleStudent ? `1.
@@ -553,7 +553,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card of girl student, 10th & 12th / Polytechnic Entrance rank card and marks memo, Allotment letter & Fee receipt from AICTE-approved engineering/polytechnic college, Family Income Certificate (below ₹8 Lakhs), Aadhaar-linked Bank Passbook.
 **Why it suits you:** Provides ₹50,000 per year (Total ₹2,00,000 for B.Tech / ₹1,50,000 for Polytechnic) direct entitlement.
 **Deadline:** 31 December 2026
-**Official Portal Link:** [National Scholarship Portal](https://scholarships.gov.in)
+**Official Portal Link:** [AICTE Scholarship Portal](https://www.aicte.gov.in/schemes/scholarship-schemes)
 
 2.
 **Scheme Name:** Andhra Pradesh Vidya Deevena (Complete Fee Reimbursement)
@@ -599,7 +599,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Protects your entire family with cashless inpatient hospital coverage up to ₹25 Lakhs per year across empaneled hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)`}`;
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://drntrvaidyaseva.ap.gov.in/)`}`;
     } else if (isFarmer) {
       return isTeluguRequested
         ? `మీ ప్రొఫైల్ వివరాల ఆధారంగా ధృవీకరించబడిన ఆంధ్రప్రదేశ్ రైతు సంక్షేమ పథకాలు క్రింద వివరించబడ్డాయి:
@@ -618,7 +618,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఏటా ₹25 లక్షల వరకు కుటుంబానికి సూపర్ స్పెషాలిటీ ఆసుపత్రులలో ఉచిత నగదు రహిత చికిత్స అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **పథకం పేరు (Scheme Name):** దీపం 2.0 ఉచిత గ్యాస్ సిలిండర్ల పథకం (AP Deepam 2.0 Free LPG)
@@ -626,7 +626,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** రేషన్ కార్డు, గ్యాస్ పాస్‌బుక్, ఆధార్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** సంవత్సరానికి 3 గృహ ఎల్పీజీ సిలిండర్లను 100% ఉచితంగా డీబీటీ రీఫండ్ ద్వారా అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)`
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://civilsupplies.ap.gov.in/homepage.jsp)`
         : `Here are verified active Government of Andhra Pradesh welfare schemes matching your profile:
 
 1.
@@ -643,7 +643,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Protects your family with cashless inpatient hospital coverage up to ₹25 Lakhs per year across empaneled hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://drntrvaidyaseva.ap.gov.in/)
 
 3.
 **Scheme Name:** Andhra Pradesh Deepam 2.0 Free Domestic LPG Scheme
@@ -651,7 +651,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card, LPG Consumer Connection Passbook, AP Rice Card.
 **Why it suits you:** Grants 3 free LPG domestic cooking gas refills every year credited directly through DBT subsidy.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)`;
+**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://civilsupplies.ap.gov.in/homepage.jsp)`;
     } else {
       // Non-student, general / employed profile
       return isTeluguRequested
@@ -663,7 +663,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** ఆధార్ కార్డు, ఏపీ రైస్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** కుటుంబానికి ప్రతి సంవత్సరం ₹25 లక్షల వరకు అధునాతన ఆసుపత్రులలో 100% ఉచిత నగదు రహిత ఆరోగ్య చికిత్స లభిస్తుంది.
 **గడువు తేదీ (Deadline):** నిరంతరం అందుబాటులో ఉంటుంది (Check Official Portal)
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://pmjay.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [డాక్టర్ ఎన్టీఆర్ వైద్య సేవ - పీఎం-జేఏవై](https://drntrvaidyaseva.ap.gov.in/)
 
 2.
 **పథకం పేరు (Scheme Name):** దీపం 2.0 ఉచిత గ్యాస్ సిలిండర్ల పథకం (AP Deepam 2.0 Free LPG)
@@ -671,7 +671,7 @@ ${isFemaleStudent ? `1.
 **అవసరమైన పత్రాలు (Document Requirements):** రేషన్ కార్డు, గ్యాస్ పాస్‌బుక్, ఆధార్ కార్డు.
 **మీకు ఎందుకు సరిపోతుంది (Why it suits you):** ఏడాదికి 3 గృహ వంట గ్యాస్ సిలిండర్లను పూర్తి ఉచితంగా సబ్సిడీ రూపంలో అందిస్తుంది.
 **గడువు తేదీ (Deadline):** Check Official Portal
-**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://epdsap.ap.gov.in)
+**అధికారిక పోర్టల్ లింక్ (Official Portal Link):** [ఆంధ్రప్రదేశ్ పౌర సరఫరాల శాఖ](https://civilsupplies.ap.gov.in/homepage.jsp)
 
 3.
 **పథకం పేరు (Scheme Name):** ఆంధ్రప్రదేశ్ నవరత్నాలు గృహ నిర్మాణ పథకం (AP Housing Scheme)
@@ -688,7 +688,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card, AP Rice Card / Health Card.
 **Why it suits you:** Cashless inpatient hospital coverage up to ₹25 Lakhs per family per year across empaneled super-specialty hospitals.
 **Deadline:** Continuous Enrollment (Check Official Portal)
-**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://pmjay.gov.in)
+**Official Portal Link:** [Dr. NTR Vaidya Seva - PM-JAY](https://drntrvaidyaseva.ap.gov.in/)
 
 2.
 **Scheme Name:** Andhra Pradesh Deepam 2.0 Free Domestic LPG Scheme
@@ -696,7 +696,7 @@ ${isFemaleStudent ? `1.
 **Document Requirements:** Aadhaar Card, LPG Consumer Connection Passbook, AP Rice Card.
 **Why it suits you:** Provides 3 free cooking gas cylinder refills every year with 100% cost refund through DBT.
 **Deadline:** Open Year Round
-**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://epdsap.ap.gov.in)
+**Official Portal Link:** [Civil Supplies Dept Andhra Pradesh](https://civilsupplies.ap.gov.in/homepage.jsp)
 
 3.
 **Scheme Name:** Andhra Pradesh Navaratnalu Pucca Housing Assistance
